@@ -1,8 +1,11 @@
+use chrono::Utc;
+
 pub struct App {
     pub days: Vec<Day>,
     pub editing: usize,
     pub note_buffer: String,
     pub should_quit: bool,
+    pub date: chrono::DateTime<Utc>,
 }
 
 impl App {
@@ -12,6 +15,7 @@ impl App {
             editing: 0,
             note_buffer: String::new(),
             should_quit: false,
+            date: chrono::Utc::now(),
         }
     }
 

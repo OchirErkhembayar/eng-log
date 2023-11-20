@@ -23,7 +23,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
         .padding(Padding::horizontal(2));
 
     let title = Paragraph::new(Text::styled(
-        "Some title",
+        format!("Some title {}", app.date.format("%d/%m/%Y %H:%M")),
         Style::default().fg(Color::Yellow).bold(),
     ))
     .block(title_block)

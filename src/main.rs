@@ -1,7 +1,11 @@
 use app::App;
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, KeyModifiers,
+    ModifierKeyCode,
+};
 use crossterm::terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::prelude::{Backend, CrosstermBackend};
+use ratatui::style::Modifier;
 use ratatui::Terminal;
 use std::io;
 
@@ -40,7 +44,9 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
             }
 
             match key.code {
-                event::KeyCode::Char('q') => app.should_quit = true,
+                event::KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                    app.should_quit = true
+                }
                 event::KeyCode::Char(char) => app.note_buffer.push(char),
                 event::KeyCode::Backspace => {
                     app.note_buffer.pop();
