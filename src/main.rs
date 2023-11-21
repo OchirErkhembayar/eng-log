@@ -44,9 +44,9 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                     }
 
                     match key.code {
+                        event::KeyCode::Enter => app.current_screen = CurrentScreen::ViewingDay,
                         event::KeyCode::Char(char) => match char {
                             'q' => app.should_quit = true,
-                            'i' => app.current_screen = CurrentScreen::Editing,
                             'j' => {
                                 if app.currently_selected < app.days.len() - 1 {
                                     app.currently_selected += 1;
@@ -70,7 +70,7 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                     }
 
                     match key.code {
-                        event::KeyCode::Esc => app.current_screen = CurrentScreen::Main,
+                        event::KeyCode::Esc => app.current_screen = CurrentScreen::ViewingDay,
                         event::KeyCode::Char('w')
                             if key.modifiers.contains(KeyModifiers::CONTROL) =>
                         {
@@ -84,7 +84,45 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                         event::KeyCode::Backspace => {
                             app.note_buffer.pop();
                         }
-                        event::KeyCode::Enter => app.save_note(),
+                        event::KeyCode::Enter => {
+                            app.save_note();
+                            app.current_screen = CurrentScreen::ViewingDay;
+                        }
+                        _ => {}
+                    };
+                }
+            }
+            CurrentScreen::ViewingDay => {
+                if let Event::Key(key) = event::read()? {
+                    if key.kind != KeyEventKind::Press {
+                        continue;
+                    }
+                    let day = &mut app.days[app.currently_selected];
+
+                    match key.code {
+                        event::KeyCode::Esc => app.current_screen = CurrentScreen::Main,
+                        event::KeyCode::Char(char) => {
+                            match char {
+                                'd' => {
+                                    if !day.notes.is_empty() {
+                                        day.notes.remove(day.currently_selected);
+                                    }
+                                }
+                                'q' => app.should_quit = true,
+                                'i' => app.current_screen = CurrentScreen::Editing,
+                                'j' => {
+                                    if day.currently_selected < day.notes.len() - 1 {
+                                        day.currently_selected += 1;
+                                    }
+                                }
+                                'k' => {
+                                    if day.currently_selected > 0 {
+                                        day.currently_selected -= 1;
+                                    }
+                                }
+                                _ => {}
+                            };
+                        }
                         _ => {}
                     };
                 }

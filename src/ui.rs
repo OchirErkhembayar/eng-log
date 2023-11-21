@@ -1,5 +1,5 @@
 use ratatui::{
-    prelude::{Alignment, Constraint, Direction, Layout},
+    prelude::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, Padding, Paragraph},
@@ -33,7 +33,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
             .padding(Padding::horizontal(2));
 
         let title = Paragraph::new(Text::styled(
-            "Some title",
+            "Engineering Log",
             Style::default().fg(Color::Yellow).bold(),
         ))
         .block(title_block.clone())
@@ -53,21 +53,53 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     // Body
     {
         let mut list_items = Vec::<ListItem>::new();
-        for (index, day) in app.days.iter().enumerate() {
-            for note in day.notes.iter() {
+        let mut render_day = || {
+            let day = &app.days[app.currently_selected];
+            for (index, note) in day.notes.iter().enumerate() {
                 let list_item = ListItem::new(Line::from(Span::styled(
                     format!("- {note}"),
                     Style::default().fg(Color::Yellow),
                 )));
-                if index == app.currently_selected {
+                if index == day.currently_selected {
                     list_items.push(list_item.bold());
                 } else {
                     list_items.push(list_item);
                 }
             }
+        };
+        match app.current_screen {
+            CurrentScreen::ViewingDay => render_day(),
+            CurrentScreen::Editing => {
+                render_day();
+                let popup_block = Block::default()
+                    .title("Add a note")
+                    .borders(Borders::NONE)
+                    .style(Style::default().bg(Color::DarkGray));
+
+                let area = centered_rect(60, 25, f.size());
+
+                let input = Paragraph::new(app.note_buffer.clone()).block(popup_block);
+                f.render_widget(input, area);
+            }
+            CurrentScreen::Main => {
+                for (index, day) in app.days.iter().enumerate() {
+                    let list_item = ListItem::new(Line::from(Span::styled(
+                        format!("- {}", day.date.format("%d-%m-%Y")),
+                        Style::default().fg(Color::Yellow),
+                    )));
+                    if index == app.currently_selected {
+                        list_items.push(list_item.bold());
+                    } else {
+                        list_items.push(list_item);
+                    }
+                }
+            }
         }
         let list = List::new(list_items)
-            .block(Block::default().title("Day TODO add date"))
+            .block(Block::default().title(format!(
+                "Day: {}",
+                app.days[app.currently_selected].date.format("%d-%m-%Y"),
+            )))
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::BOLD))
             .highlight_symbol(">>");
@@ -81,19 +113,13 @@ pub fn ui(f: &mut Frame, app: &mut App) {
             .constraints([Constraint::Length(1), Constraint::Length(1)])
             .split(chunks[2]);
 
-        if app.current_screen == CurrentScreen::Editing {
-            let input_buffer_text = Span::styled(
-                format!("> {}{}", app.note_buffer, "█"),
-                Style::default().fg(Color::Yellow),
-            );
-            let input_buffer = Paragraph::new(Line::from(input_buffer_text));
-            f.render_widget(input_buffer, footer_chunks[0]);
-        }
-
         let current_keys_hint = {
             let text = match app.current_screen {
-                CurrentScreen::Main => "(q) quit | (i) edit",
+                CurrentScreen::Main => "(q) quit | (enter) view day",
                 CurrentScreen::Editing => "(esc) back | (enter) save",
+                CurrentScreen::ViewingDay => {
+                    "(q) quit | (esc) back | (i) add note | (d) delete note"
+                }
             };
             Span::styled(text, Style::default().fg(Color::Yellow))
         };
@@ -102,4 +128,24 @@ pub fn ui(f: &mut Frame, app: &mut App) {
 
         f.render_widget(key_hints_footer, footer_chunks[1]);
     }
+}
+
+fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage((100 - percent_y) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_y) / 2),
+        ])
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Percentage((100 - percent_x) / 2),
+            Constraint::Percentage(percent_y),
+            Constraint::Percentage((100 - percent_x) / 2),
+        ])
+        .split(popup_layout[1])[1]
 }
