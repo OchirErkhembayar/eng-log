@@ -13,17 +13,32 @@ pub struct App {
     pub should_quit: bool,
     pub current_screen: CurrentScreen,
     pub date: chrono::DateTime<Utc>,
+    pub currently_selected: usize,
 }
 
 impl App {
     pub fn new() -> Self {
+        let days = Vec::from([
+            String::from("Random"),
+            String::from("Day 3"),
+            String::from("Day 4"),
+            String::from("Day 5"),
+        ])
+        .into_iter()
+        .map(|note| {
+            let mut day = Day::new();
+            day.notes.push(note);
+            day
+        })
+        .collect();
         App {
-            days: Vec::from([Day::new()]),
+            days,
             editing: 0,
             note_buffer: String::new(),
             should_quit: false,
             current_screen: CurrentScreen::Main,
             date: chrono::Utc::now(),
+            currently_selected: 0,
         }
     }
 

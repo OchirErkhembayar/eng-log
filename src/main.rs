@@ -1,9 +1,10 @@
 use app::{App, CurrentScreen};
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, KeyModifiers};
+use crossterm::event::{
+    self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, KeyModifiers,
+};
 use crossterm::terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::prelude::{Backend, CrosstermBackend};
 use ratatui::Terminal;
-use ratatui::style::Modifier;
 use std::io;
 
 mod app;
@@ -43,8 +44,21 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                     }
 
                     match key.code {
-                        event::KeyCode::Char('q') => app.should_quit = true,
-                        event::KeyCode::Char('i') => app.current_screen = CurrentScreen::Editing,
+                        event::KeyCode::Char(char) => match char {
+                            'q' => app.should_quit = true,
+                            'i' => app.current_screen = CurrentScreen::Editing,
+                            'j' => {
+                                if app.currently_selected < app.days.len() - 1 {
+                                    app.currently_selected += 1;
+                                }
+                            }
+                            'k' => {
+                                if app.currently_selected > 0 {
+                                    app.currently_selected -= 1;
+                                }
+                            }
+                            _ => {}
+                        },
                         _ => {}
                     };
                 }
@@ -57,7 +71,9 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
 
                     match key.code {
                         event::KeyCode::Esc => app.current_screen = CurrentScreen::Main,
-                        event::KeyCode::Char('w') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                        event::KeyCode::Char('w')
+                            if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                        {
                             while let Some(char) = app.note_buffer.pop() {
                                 if char == ' ' {
                                     break;

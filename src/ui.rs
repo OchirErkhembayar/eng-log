@@ -1,6 +1,6 @@
 use ratatui::{
     prelude::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Style, Stylize},
+    style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, Padding, Paragraph},
     Frame,
@@ -53,16 +53,24 @@ pub fn ui(f: &mut Frame, app: &mut App) {
     // Body
     {
         let mut list_items = Vec::<ListItem>::new();
-
-        for note in &app.days[0].notes {
-            list_items.push(ListItem::new(Line::from(Span::styled(
-                format!("- {note}"),
-                Style::default().fg(Color::Yellow),
-            ))));
+        for (index, day) in app.days.iter().enumerate() {
+            for note in day.notes.iter() {
+                let list_item = ListItem::new(Line::from(Span::styled(
+                    format!("- {note}"),
+                    Style::default().fg(Color::Yellow),
+                )));
+                if index == app.currently_selected {
+                    list_items.push(list_item.bold());
+                } else {
+                    list_items.push(list_item);
+                }
+            }
         }
-
-        let list = List::new(list_items);
-
+        let list = List::new(list_items)
+            .block(Block::default().title("Day TODO add date"))
+            .style(Style::default().fg(Color::White))
+            .highlight_style(Style::default().add_modifier(Modifier::BOLD))
+            .highlight_symbol(">>");
         f.render_widget(list, chunks[1]);
     }
 
