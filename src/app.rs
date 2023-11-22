@@ -43,6 +43,7 @@ impl<T: TimeZone> App<T> {
                     .checked_sub_signed(Duration::days(1))
                     .unwrap(),
             ),
+            (String::from("Day 5"), chrono::Utc::now()),
         ])
         .into_iter()
         .map(|(note, date)| {
