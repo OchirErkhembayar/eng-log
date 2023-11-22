@@ -72,14 +72,16 @@ pub fn ui(f: &mut Frame, app: &mut App) {
             CurrentScreen::Editing => {
                 render_day();
                 let popup_block = Block::default()
-                    .title("Add a note")
+                    .title("Enter a note")
                     .borders(Borders::NONE)
                     .style(Style::default().bg(Color::DarkGray));
-
                 let area = centered_rect(60, 25, f.size());
+                f.render_widget(popup_block, area);
 
-                let input = Paragraph::new(app.note_buffer.clone()).block(popup_block);
-                f.render_widget(input, area);
+                let input_block = Block::default().title("Input").borders(Borders::ALL);
+                let input_text = Paragraph::new(app.note_buffer.clone()).block(input_block);
+
+                f.render_widget(input_text, area);
             }
             CurrentScreen::Main => {
                 for (index, day) in app.days.iter().enumerate() {

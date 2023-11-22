@@ -106,6 +106,9 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                                 'd' => {
                                     if !day.notes.is_empty() {
                                         day.notes.remove(day.currently_selected);
+                                        if day.currently_selected > 0 {
+                                            day.currently_selected -= 1;
+                                        }
                                     }
                                 }
                                 'q' => app.should_quit = true,
