@@ -1,4 +1,5 @@
 use app::{App, CurrentScreen};
+use chrono::{TimeZone, Utc};
 use crossterm::event::{
     self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, KeyModifiers,
 };
@@ -11,6 +12,7 @@ mod app;
 mod ui;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    initialize_panic_handler();
     crossterm::terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
     crossterm::execute!(stdout, EnterAlternateScreen, EnableMouseCapture,)?;
@@ -18,7 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new();
+    let mut app = App::new(Utc);
 
     run(&mut terminal, &mut app)?;
 
@@ -32,7 +34,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> {
+fn run<B, T>(terminal: &mut Terminal<B>, app: &mut App<T>) -> io::Result<()>
+where
+    B: Backend,
+    T: TimeZone,
+{
     while !app.should_quit {
         terminal.draw(|f| ui::ui(f, app))?;
 
@@ -47,11 +53,13 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                         event::KeyCode::Enter => app.current_screen = CurrentScreen::ViewingDay,
                         event::KeyCode::Char(char) => match char {
                             'q' => app.should_quit = true,
+                            'i' => app.current_screen = CurrentScreen::Editing,
                             'j' => {
                                 if app.currently_selected < app.days.len() - 1 {
                                     app.currently_selected += 1;
                                 }
                             }
+                            'l' => app.current_screen = CurrentScreen::ViewingDay,
                             'k' => {
                                 if app.currently_selected > 0 {
                                     app.currently_selected -= 1;
@@ -70,7 +78,15 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                     }
 
                     match key.code {
-                        event::KeyCode::Esc => app.current_screen = CurrentScreen::ViewingDay,
+                        event::KeyCode::Esc => {
+                            app.current_screen = CurrentScreen::ViewingDay;
+                            let day = &mut app.days[app.currently_selected];
+                            if day.updating {
+                                day.updating = false;
+
+                                day.note_buffer.clear();
+                            }
+                        }
                         event::KeyCode::Char('w')
                             if key.modifiers.contains(KeyModifiers::CONTROL) =>
                         {
@@ -115,6 +131,12 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                                         }
                                     }
                                 }
+                                'e' => {
+                                    let day = &mut app.days[app.currently_selected];
+                                    day.note_buffer = day.notes[day.currently_selected].to_owned();
+                                    day.updating = true;
+                                    app.current_screen = CurrentScreen::Editing;
+                                }
                                 'q' => app.should_quit = true,
                                 'i' => app.current_screen = CurrentScreen::Editing,
                                 'j' => {
@@ -122,6 +144,7 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                                         day.currently_selected += 1;
                                     }
                                 }
+                                'h' => app.current_screen = CurrentScreen::Main,
                                 'k' => {
                                     if day.currently_selected > 0 {
                                         day.currently_selected -= 1;
@@ -138,4 +161,13 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
     }
 
     Ok(())
+}
+
+pub fn initialize_panic_handler() {
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |panic_info| {
+        crossterm::execute!(std::io::stderr(), crossterm::terminal::LeaveAlternateScreen).unwrap();
+        crossterm::terminal::disable_raw_mode().unwrap();
+        original_hook(panic_info);
+    }));
 }

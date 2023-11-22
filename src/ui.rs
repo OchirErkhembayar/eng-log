@@ -2,13 +2,13 @@ use ratatui::{
     prelude::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, List, ListItem, Padding, Paragraph},
+    widgets::{Block, Borders, List, ListItem, Padding, Paragraph, Wrap},
     Frame,
 };
 
 use crate::app::{App, CurrentScreen};
 
-pub fn ui(f: &mut Frame, app: &mut App) {
+pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -34,20 +34,27 @@ pub fn ui(f: &mut Frame, app: &mut App) {
 
         let title = Paragraph::new(Text::styled(
             "Engineering Log",
-            Style::default().fg(Color::Yellow).bold(),
+            Style::default().fg(Color::White).bold(),
         ))
         .block(title_block.clone())
         .alignment(Alignment::Center);
 
-        let date = Paragraph::new(Text::styled(
-            format!("Date: {}", app.date.format("%d/%m/%Y %H:%M")),
-            Style::default().fg(Color::Yellow).bold(),
+        let mut content = String::from("Viewing: ");
+        content.push_str(&match app.current_screen {
+            CurrentScreen::Main => "Days".to_string(),
+            CurrentScreen::Editing | CurrentScreen::ViewingDay => {
+                format!("{}", app.date.format("%d/%m/%Y"))
+            }
+        });
+        let subtitle = Paragraph::new(Text::styled(
+            content,
+            Style::default().fg(Color::White).bold(),
         ))
         .block(title_block)
         .alignment(Alignment::Center);
 
-        f.render_widget(title, title_chunks[0]);
-        f.render_widget(date, title_chunks[1]);
+        f.render_widget(subtitle, title_chunks[0]);
+        f.render_widget(title, title_chunks[1]);
     }
 
     // Body
@@ -58,7 +65,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
             for (index, note) in day.notes.iter().enumerate() {
                 let list_item = ListItem::new(Line::from(Span::styled(
                     format!("- {note}"),
-                    Style::default().fg(Color::Yellow),
+                    Style::default().fg(Color::White),
                 )));
                 if index == day.currently_selected {
                     list_items.push(list_item.bold());
@@ -75,12 +82,13 @@ pub fn ui(f: &mut Frame, app: &mut App) {
                     .title("Enter a note")
                     .borders(Borders::NONE)
                     .style(Style::default().bg(Color::DarkGray));
-                let area = centered_rect(60, 25, f.size());
+                let area = centered_rect(60, 15, f.size());
                 f.render_widget(popup_block, area);
 
-                let input_block = Block::default().title("Input").borders(Borders::ALL);
+                let input_block = Block::default().title("Enter note").borders(Borders::ALL);
                 let input_text =
                     Paragraph::new(app.days[app.currently_selected].note_buffer.clone())
+                        .wrap(Wrap { trim: true })
                         .block(input_block);
 
                 f.render_widget(input_text, area);
@@ -89,7 +97,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
                 for (index, day) in app.days.iter().enumerate() {
                     let list_item = ListItem::new(Line::from(Span::styled(
                         format!("- {}", day.date.format("%d-%m-%Y")),
-                        Style::default().fg(Color::Yellow),
+                        Style::default().fg(Color::White),
                     )));
                     if index == app.currently_selected {
                         list_items.push(list_item.bold());
@@ -100,10 +108,7 @@ pub fn ui(f: &mut Frame, app: &mut App) {
             }
         }
         let list = List::new(list_items)
-            .block(Block::default().title(format!(
-                "Day: {}",
-                app.days[app.currently_selected].date.format("%d-%m-%Y"),
-            )))
+            .block(Block::default())
             .style(Style::default().fg(Color::White))
             .highlight_style(Style::default().add_modifier(Modifier::BOLD))
             .highlight_symbol(">>");
@@ -119,13 +124,16 @@ pub fn ui(f: &mut Frame, app: &mut App) {
 
         let current_keys_hint = {
             let text = match app.current_screen {
-                CurrentScreen::Main => "(q) quit | (enter) view day",
+                CurrentScreen::Main => "(q) quit | (enter) view day | (i) add note",
                 CurrentScreen::Editing => "(esc) back | (enter) save",
                 CurrentScreen::ViewingDay => {
                     "(q) quit | (esc) back | (i) add note | (d) delete note"
                 }
             };
-            Span::styled(text, Style::default().fg(Color::Yellow))
+            Span::styled(
+                text,
+                Style::default().bold().fg(Color::White).bg(Color::Blue),
+            )
         };
         let key_hints_footer = Paragraph::new(Line::from(current_keys_hint))
             .block(Block::default().padding(Padding::horizontal(1)));
@@ -148,7 +156,7 @@ fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
         .direction(Direction::Horizontal)
         .constraints([
             Constraint::Percentage((100 - percent_x) / 2),
-            Constraint::Percentage(percent_y),
+            Constraint::Percentage(percent_x),
             Constraint::Percentage((100 - percent_x) / 2),
         ])
         .split(popup_layout[1])[1]
