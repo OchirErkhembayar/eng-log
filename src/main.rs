@@ -74,15 +74,19 @@ fn run<B: Backend>(terminal: &mut Terminal<B>, app: &mut App) -> io::Result<()> 
                         event::KeyCode::Char('w')
                             if key.modifiers.contains(KeyModifiers::CONTROL) =>
                         {
-                            while let Some(char) = app.note_buffer.pop() {
+                            while let Some(char) =
+                                app.days[app.currently_selected].note_buffer.pop()
+                            {
                                 if char == ' ' {
                                     break;
                                 }
                             }
                         }
-                        event::KeyCode::Char(char) => app.note_buffer.push(char),
+                        event::KeyCode::Char(char) => {
+                            app.days[app.currently_selected].note_buffer.push(char)
+                        }
                         event::KeyCode::Backspace => {
-                            app.note_buffer.pop();
+                            app.days[app.currently_selected].note_buffer.pop();
                         }
                         event::KeyCode::Enter => {
                             app.save_note();

@@ -79,7 +79,9 @@ pub fn ui(f: &mut Frame, app: &mut App) {
                 f.render_widget(popup_block, area);
 
                 let input_block = Block::default().title("Input").borders(Borders::ALL);
-                let input_text = Paragraph::new(app.note_buffer.clone()).block(input_block);
+                let input_text =
+                    Paragraph::new(app.days[app.currently_selected].note_buffer.clone())
+                        .block(input_block);
 
                 f.render_widget(input_text, area);
             }
