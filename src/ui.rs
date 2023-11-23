@@ -39,7 +39,11 @@ pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
         .block(title_block.clone())
         .alignment(Alignment::Center);
 
-        let mut content = String::from("Viewing: ");
+        let mut content = if app.current_screen == CurrentScreen::Editing {
+            "Editing: ".to_string()
+        } else {
+            "Viewing: ".to_string()
+        };
         content.push_str(&match app.current_screen {
             CurrentScreen::Main => "Days".to_string(),
             CurrentScreen::Editing | CurrentScreen::ViewingDay => {

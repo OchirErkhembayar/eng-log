@@ -1,13 +1,11 @@
 use app::{App, CurrentScreen, Day};
 use chrono::{TimeZone, Utc};
-use crossterm::event::{
-    self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, KeyModifiers,
-};
+use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind};
 use crossterm::terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::prelude::{Backend, CrosstermBackend};
 use ratatui::Terminal;
 use std::io;
-use tui_textarea::CursorMove;
+use tui_textarea::{CursorMove, Input, Key};
 
 mod app;
 mod ui;
@@ -78,30 +76,23 @@ where
                         continue;
                     }
 
-                    match key.code {
-                        event::KeyCode::Esc => {
+                    match key.into() {
+                        Input {
+                            key: Key::Enter, ..
+                        } => {
+                            app.save_note();
+                            app.current_screen = CurrentScreen::ViewingDay;
+                        }
+                        Input { key: Key::Esc, .. } => {
                             app.current_screen = CurrentScreen::ViewingDay;
                             let day = &mut app.days[app.currently_selected];
                             if day.updating {
                                 day.updating = false;
                             }
                         }
-                        event::KeyCode::Char('w')
-                            if key.modifiers.contains(KeyModifiers::CONTROL) =>
-                        {
-                            app.days[app.currently_selected].note_buffer.delete_word();
+                        input => {
+                            app.days[app.currently_selected].note_buffer.input(input);
                         }
-                        event::KeyCode::Char(char) => app.days[app.currently_selected]
-                            .note_buffer
-                            .insert_char(char),
-                        event::KeyCode::Backspace => {
-                            app.days[app.currently_selected].note_buffer.delete_char();
-                        }
-                        event::KeyCode::Enter => {
-                            app.save_note();
-                            app.current_screen = CurrentScreen::ViewingDay;
-                        }
-                        _ => {}
                     };
                 }
             }

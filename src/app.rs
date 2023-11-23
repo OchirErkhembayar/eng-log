@@ -106,7 +106,7 @@ impl<'a> Day<'a> {
             Some(input) => TextArea::new(vec![input]),
             None => TextArea::default(),
         };
-        textarea.set_placeholder_text("Enter a note..");
+        textarea.set_placeholder_text("Start typing..");
         textarea.set_cursor_line_style(Style::default());
         textarea.set_block(
             Block::default()
