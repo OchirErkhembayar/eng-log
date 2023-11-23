@@ -1,6 +1,6 @@
 use ratatui::{
     prelude::{Alignment, Constraint, Direction, Layout, Rect},
-    style::{Color, Modifier, Style, Stylize},
+    style::{Color, Style, Stylize},
     text::{Line, Span, Text},
     widgets::{Block, Borders, List, ListItem, Padding, Paragraph},
     Frame,
@@ -40,7 +40,11 @@ pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
         .alignment(Alignment::Center);
 
         let mut content = if app.current_screen == CurrentScreen::Editing {
-            "Editing: ".to_string()
+            if app.days[app.currently_selected].updating {
+                "Editing: ".to_string()
+            } else {
+                "Inserting: ".to_string()
+            }
         } else {
             "Viewing: ".to_string()
         };
@@ -69,13 +73,13 @@ pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
             for (index, note) in day.notes.iter().enumerate() {
                 if index == day.currently_selected {
                     let list_item = ListItem::new(Line::from(Span::styled(
-                        format!("- {note}"),
+                        note.clone(),
                         Style::default().fg(Color::White).bg(Color::Blue),
                     )));
                     list_items.push(list_item.bold());
                 } else {
                     let list_item = ListItem::new(Line::from(Span::styled(
-                        format!("- {note}"),
+                        note.clone(),
                         Style::default().fg(Color::White),
                     )));
                     list_items.push(list_item);
@@ -101,13 +105,13 @@ pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
                 for (index, day) in app.days.iter().enumerate() {
                     if index == app.currently_selected {
                         let list_item = ListItem::new(Line::from(Span::styled(
-                            format!("- {}", day.date.format("%d-%m-%Y")),
+                            format!("{}", day.date.format("%d-%m-%Y")),
                             Style::default().fg(Color::White).bg(Color::Blue),
                         )));
                         list_items.push(list_item.bold());
                     } else {
                         let list_item = ListItem::new(Line::from(Span::styled(
-                            format!("- {}", day.date.format("%d-%m-%Y")),
+                            format!("{}", day.date.format("%d-%m-%Y")),
                             Style::default().fg(Color::White),
                         )));
                         list_items.push(list_item);
@@ -116,10 +120,8 @@ pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
             }
         }
         let list = List::new(list_items)
-            .block(Block::default())
-            .style(Style::default().fg(Color::White))
-            .highlight_style(Style::default().add_modifier(Modifier::BOLD))
-            .highlight_symbol(">>");
+            .block(Block::default().padding(Padding::horizontal(1)))
+            .style(Style::default().fg(Color::White));
         f.render_widget(list, chunks[1]);
     }
 

@@ -3,7 +3,7 @@ use ratatui::{
     style::Style,
     widgets::{Block, Borders, Padding},
 };
-use tui_textarea::TextArea;
+use tui_textarea::{CursorMove, Input, TextArea};
 
 #[derive(PartialEq)]
 pub enum CurrentScreen {
@@ -80,6 +80,22 @@ impl<'a, T: TimeZone> App<'a, T> {
     pub fn save_note(&mut self) {
         self.days[self.currently_selected].save_note();
     }
+
+    pub fn input_to_current_day(&mut self, input: Input) {
+        self.days[self.currently_selected].note_buffer.input(input);
+    }
+
+    pub fn increment_selected(&mut self) {
+        if self.currently_selected < self.days.len() - 1 {
+            self.currently_selected += 1;
+        }
+    }
+
+    pub fn decrement_selected(&mut self) {
+        if self.currently_selected > 0 {
+            self.currently_selected -= 1;
+        }
+    }
 }
 
 pub struct Day<'a> {
@@ -99,6 +115,33 @@ impl<'a> Day<'a> {
             note_buffer: Self::new_text_area(None),
             updating: false,
         }
+    }
+
+    pub fn increment_selected(&mut self) {
+        if self.currently_selected < self.notes.len() - 1 {
+            self.currently_selected += 1;
+        }
+    }
+
+    pub fn decrement_selected(&mut self) {
+        if self.currently_selected > 0 {
+            self.currently_selected -= 1;
+        }
+    }
+
+    pub fn delete_current_note(&mut self) {
+        if !self.notes.is_empty() {
+            self.notes.remove(self.currently_selected);
+            if self.currently_selected >= self.notes.len() && self.currently_selected > 0 {
+                self.currently_selected -= 1;
+            }
+        }
+    }
+
+    pub fn edit_currently_selected(&mut self) {
+        self.note_buffer = Day::new_text_area(Some(self.notes[self.currently_selected].to_owned()));
+        self.note_buffer.move_cursor(CursorMove::End);
+        self.updating = true;
     }
 
     pub fn new_text_area(input: Option<String>) -> TextArea<'a> {
