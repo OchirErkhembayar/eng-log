@@ -137,7 +137,7 @@ pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
                 CurrentScreen::Main => "(q) quit | (enter) view day | (i) add note",
                 CurrentScreen::Editing => "(esc) back | (enter) save",
                 CurrentScreen::ViewingDay => {
-                    "(q) quit | (esc) back | (i) add note | (d) delete note"
+                    "(q) quit | (esc) back | (i) add note | (e) edit note | (d) delete note"
                 }
             };
             Span::styled(

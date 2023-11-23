@@ -23,57 +23,35 @@ pub struct App<'a, T> {
 
 impl<'a, T: TimeZone> App<'a, T> {
     pub fn new(timezone: T) -> Self {
-        let mut days: Vec<Day> = Vec::from([
-            (
-                String::from("Day 2"),
-                chrono::Utc::now()
-                    .checked_sub_signed(Duration::days(4))
-                    .unwrap(),
-            ),
-            (
-                String::from("Day 3"),
-                chrono::Utc::now()
-                    .checked_sub_signed(Duration::days(3))
-                    .unwrap(),
-            ),
-            (
-                String::from("Day 4"),
-                chrono::Utc::now()
-                    .checked_sub_signed(Duration::days(2))
-                    .unwrap(),
-            ),
-            (
-                String::from("Day 5"),
-                chrono::Utc::now()
-                    .checked_sub_signed(Duration::days(1))
-                    .unwrap(),
-            ),
-            (String::from("Day 5"), chrono::Utc::now()),
-        ])
-        .into_iter()
-        .map(|(note, date)| {
-            let mut day = Day::new(date.date_naive());
-            day.notes.push(note);
-            day
-        })
-        .collect();
+        let mut days: Vec<Day> = vec![("1", 5), ("2", 4), ("3", 3), ("4", 2), ("5", 1)]
+            .into_iter()
+            .map(|(note, days)| {
+                let date = chrono::Utc::now()
+                    .checked_sub_signed(Duration::days(days))
+                    .unwrap();
+                let mut day = Day::new(date.date_naive());
+                day.notes.push(format!("Day {note}"));
+                day
+            })
+            .collect();
 
         let current_day = chrono::Utc::now();
         let current_day_naive = current_day.date_naive();
-        let currently_selected = match days.iter().position(|day| day.date == current_day_naive) {
-            Some(index) => index,
-            None => {
-                days.push(Day::new(current_day.date_naive()));
-                days.len() - 1
-            }
-        };
+        if days
+            .iter()
+            .position(|day| day.date == current_day_naive)
+            .is_none()
+        {
+            days.push(Day::new(current_day.date_naive()));
+        }
+        days.reverse();
         App {
             days,
             should_quit: false,
             current_screen: CurrentScreen::Main,
             timezone,
             date: current_day.date_naive(),
-            currently_selected,
+            currently_selected: 0,
         }
     }
 
