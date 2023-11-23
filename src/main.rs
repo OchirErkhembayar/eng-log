@@ -40,14 +40,12 @@ where
 {
     while !app.should_quit {
         terminal.draw(|f| ui::ui(f, app))?;
-
-        match app.current_screen {
-            CurrentScreen::Main => {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind != KeyEventKind::Press {
-                        continue;
-                    }
-
+        if let Event::Key(key) = event::read()? {
+            if key.kind != KeyEventKind::Press {
+                continue;
+            }
+            match app.current_screen {
+                CurrentScreen::Main => {
                     match key.code {
                         event::KeyCode::Enter => app.current_screen = CurrentScreen::ViewingDay,
                         event::KeyCode::Char(char) => match char {
@@ -69,13 +67,7 @@ where
                         _ => {}
                     };
                 }
-            }
-            CurrentScreen::Editing => {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind != KeyEventKind::Press {
-                        continue;
-                    }
-
+                CurrentScreen::Editing => {
                     match key.into() {
                         Input {
                             key: Key::Enter, ..
@@ -95,22 +87,16 @@ where
                         }
                     };
                 }
-            }
-            CurrentScreen::ViewingDay => {
-                if let Event::Key(key) = event::read()? {
-                    if key.kind != KeyEventKind::Press {
-                        continue;
-                    }
-                    let day = &mut app.days[app.currently_selected];
-
+                CurrentScreen::ViewingDay => {
                     match key.code {
                         event::KeyCode::Esc => app.current_screen = CurrentScreen::Main,
                         event::KeyCode::Char(char) => {
+                            let day = &mut app.days[app.currently_selected];
                             match char {
                                 'd' => {
                                     if !day.notes.is_empty() {
                                         day.notes.remove(day.currently_selected);
-                                        if day.currently_selected > 0 {
+                                        if day.currently_selected >= day.notes.len() && day.currently_selected > 0 {
                                             day.currently_selected -= 1;
                                         }
                                     }
