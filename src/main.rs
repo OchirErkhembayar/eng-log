@@ -1,4 +1,4 @@
-use app::{App, CurrentScreen};
+use app::{App, CurrentScreen, Day};
 use chrono::{TimeZone, Utc};
 use crossterm::event::{
     self, DisableMouseCapture, EnableMouseCapture, Event, KeyEventKind, KeyModifiers,
@@ -7,6 +7,7 @@ use crossterm::terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternate
 use ratatui::prelude::{Backend, CrosstermBackend};
 use ratatui::Terminal;
 use std::io;
+use tui_textarea::CursorMove;
 
 mod app;
 mod ui;
@@ -83,26 +84,18 @@ where
                             let day = &mut app.days[app.currently_selected];
                             if day.updating {
                                 day.updating = false;
-
-                                day.note_buffer.clear();
                             }
                         }
                         event::KeyCode::Char('w')
                             if key.modifiers.contains(KeyModifiers::CONTROL) =>
                         {
-                            while let Some(char) =
-                                app.days[app.currently_selected].note_buffer.pop()
-                            {
-                                if char == ' ' {
-                                    break;
-                                }
-                            }
+                            app.days[app.currently_selected].note_buffer.delete_word();
                         }
-                        event::KeyCode::Char(char) => {
-                            app.days[app.currently_selected].note_buffer.push(char)
-                        }
+                        event::KeyCode::Char(char) => app.days[app.currently_selected]
+                            .note_buffer
+                            .insert_char(char),
                         event::KeyCode::Backspace => {
-                            app.days[app.currently_selected].note_buffer.pop();
+                            app.days[app.currently_selected].note_buffer.delete_char();
                         }
                         event::KeyCode::Enter => {
                             app.save_note();
@@ -133,9 +126,14 @@ where
                                 }
                                 'e' => {
                                     let day = &mut app.days[app.currently_selected];
-                                    day.note_buffer = day.notes[day.currently_selected].to_owned();
-                                    day.updating = true;
-                                    app.current_screen = CurrentScreen::Editing;
+                                    if !day.notes.is_empty() {
+                                        day.note_buffer = Day::new_text_area(Some(
+                                            day.notes[day.currently_selected].to_owned(),
+                                        ));
+                                        day.note_buffer.move_cursor(CursorMove::End);
+                                        day.updating = true;
+                                        app.current_screen = CurrentScreen::Editing;
+                                    }
                                 }
                                 'q' => app.should_quit = true,
                                 'i' => app.current_screen = CurrentScreen::Editing,

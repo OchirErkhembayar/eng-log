@@ -2,7 +2,7 @@ use ratatui::{
     prelude::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, List, ListItem, Padding, Paragraph, Wrap},
+    widgets::{Block, Borders, List, ListItem, Padding, Paragraph},
     Frame,
 };
 
@@ -63,13 +63,17 @@ pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
         let mut render_day = || {
             let day = &app.days[app.currently_selected];
             for (index, note) in day.notes.iter().enumerate() {
-                let list_item = ListItem::new(Line::from(Span::styled(
-                    format!("- {note}"),
-                    Style::default().fg(Color::White),
-                )));
                 if index == day.currently_selected {
+                    let list_item = ListItem::new(Line::from(Span::styled(
+                        format!("- {note}"),
+                        Style::default().fg(Color::White).bg(Color::Blue),
+                    )));
                     list_items.push(list_item.bold());
                 } else {
+                    let list_item = ListItem::new(Line::from(Span::styled(
+                        format!("- {note}"),
+                        Style::default().fg(Color::White),
+                    )));
                     list_items.push(list_item);
                 }
             }
@@ -79,29 +83,29 @@ pub fn ui<T>(f: &mut Frame, app: &mut App<T>) {
             CurrentScreen::Editing => {
                 render_day();
                 let popup_block = Block::default()
-                    .title("Enter a note")
                     .borders(Borders::NONE)
                     .style(Style::default().bg(Color::DarkGray));
                 let area = centered_rect(60, 15, f.size());
                 f.render_widget(popup_block, area);
 
-                let input_block = Block::default().title("Enter note").borders(Borders::ALL);
-                let input_text =
-                    Paragraph::new(app.days[app.currently_selected].note_buffer.clone())
-                        .wrap(Wrap { trim: true })
-                        .block(input_block);
+                let text_area = &mut app.days[app.currently_selected].note_buffer;
+                text_area.style().not_underlined();
 
-                f.render_widget(input_text, area);
+                f.render_widget(text_area.widget(), area);
             }
             CurrentScreen::Main => {
                 for (index, day) in app.days.iter().enumerate() {
-                    let list_item = ListItem::new(Line::from(Span::styled(
-                        format!("- {}", day.date.format("%d-%m-%Y")),
-                        Style::default().fg(Color::White),
-                    )));
                     if index == app.currently_selected {
+                        let list_item = ListItem::new(Line::from(Span::styled(
+                            format!("- {}", day.date.format("%d-%m-%Y")),
+                            Style::default().fg(Color::White).bg(Color::Blue),
+                        )));
                         list_items.push(list_item.bold());
                     } else {
+                        let list_item = ListItem::new(Line::from(Span::styled(
+                            format!("- {}", day.date.format("%d-%m-%Y")),
+                            Style::default().fg(Color::White),
+                        )));
                         list_items.push(list_item);
                     }
                 }

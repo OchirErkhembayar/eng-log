@@ -1,4 +1,9 @@
 use chrono::{Duration, TimeZone};
+use ratatui::{
+    style::Style,
+    widgets::{Block, Borders, Padding},
+};
+use tui_textarea::TextArea;
 
 #[derive(PartialEq)]
 pub enum CurrentScreen {
@@ -7,8 +12,8 @@ pub enum CurrentScreen {
     ViewingDay,
 }
 
-pub struct App<T> {
-    pub days: Vec<Day>,
+pub struct App<'a, T> {
+    pub days: Vec<Day<'a>>,
     pub should_quit: bool,
     pub current_screen: CurrentScreen,
     pub timezone: T,
@@ -16,7 +21,7 @@ pub struct App<T> {
     pub currently_selected: usize,
 }
 
-impl<T: TimeZone> App<T> {
+impl<'a, T: TimeZone> App<'a, T> {
     pub fn new(timezone: T) -> Self {
         let mut days: Vec<Day> = Vec::from([
             (
@@ -77,27 +82,43 @@ impl<T: TimeZone> App<T> {
     }
 }
 
-pub struct Day {
+pub struct Day<'a> {
     pub date: chrono::NaiveDate,
     pub notes: Vec<String>,
     pub currently_selected: usize,
-    pub note_buffer: String,
+    pub note_buffer: TextArea<'a>,
     pub updating: bool,
 }
 
-impl Day {
+impl<'a> Day<'a> {
     fn new(date: chrono::NaiveDate) -> Self {
         Self {
             date,
             notes: Vec::new(),
             currently_selected: 0,
-            note_buffer: String::new(),
+            note_buffer: Self::new_text_area(None),
             updating: false,
         }
     }
 
+    pub fn new_text_area(input: Option<String>) -> TextArea<'a> {
+        let mut textarea = match input {
+            Some(input) => TextArea::new(vec![input]),
+            None => TextArea::default(),
+        };
+        textarea.set_placeholder_text("Enter a note..");
+        textarea.set_cursor_line_style(Style::default());
+        textarea.set_block(
+            Block::default()
+                .title("Note")
+                .borders(Borders::ALL)
+                .padding(Padding::horizontal(1)),
+        );
+        textarea
+    }
+
     pub fn save_note(&mut self) {
-        let trimmed = self.note_buffer.trim().to_owned();
+        let trimmed = self.note_buffer.lines().join(" ").trim().to_owned();
         if trimmed.is_empty() {
             return;
         }
@@ -113,6 +134,6 @@ impl Day {
             self.notes.insert(new_index, trimmed);
             self.currently_selected = new_index;
         }
-        self.note_buffer.clear();
+        self.note_buffer = Self::new_text_area(None);
     }
 }

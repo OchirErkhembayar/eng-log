@@ -9,4 +9,5 @@ edition = "2021"
 chrono = "0.4.31"
 crossterm = "0.27.0"
 ratatui = "0.24.0"
+tui-textarea = "0.4.0"
 
