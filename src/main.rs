@@ -96,7 +96,9 @@ where
                                 'd' => {
                                     if !day.notes.is_empty() {
                                         day.notes.remove(day.currently_selected);
-                                        if day.currently_selected >= day.notes.len() && day.currently_selected > 0 {
+                                        if day.currently_selected >= day.notes.len()
+                                            && day.currently_selected > 0
+                                        {
                                             day.currently_selected -= 1;
                                         }
                                     }
