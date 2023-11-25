@@ -10,6 +10,7 @@ use update::update;
 mod app;
 mod ui;
 mod update;
+const FILE_PATH: &str = "./test/test.json";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     initialize_panic_handler();
@@ -20,7 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(Utc);
+    let mut app = App::new(Utc, FILE_PATH.to_string());
 
     run(&mut terminal, &mut app)?;
 

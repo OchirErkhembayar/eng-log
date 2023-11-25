@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use std::{char, fs};
 use tui_textarea::{CursorMove, Input, TextArea};
 
-const FILE_PATH: &str = "./data.txt";
+use crate::FILE_PATH;
 
-const TEST_FILE_PATH: &str = "./test.txt";
+const TEST_FILE_PATH: &str = "./test/test.json";
 
 #[derive(PartialEq)]
 pub enum CurrentScreen {
@@ -75,16 +75,17 @@ pub struct App<'a, T> {
     pub text_buffer: TextArea<'a>,
     pub popup: Option<Popup>,
     pub popup_buffer: PopupBuffer,
+    file_path: String,
 }
 
 impl<'a, T: TimeZone> App<'a, T> {
-    pub fn new(timezone: T) -> Self {
+    pub fn new(timezone: T, file_path: String) -> Self {
         let days = Self::load_days();
         let now = Utc::now().date_naive();
-        Self::create_app(days, now, timezone)
+        Self::create_app(days, now, timezone, file_path)
     }
 
-    fn create_app(mut days: Days, now: NaiveDate, timezone: T) -> Self {
+    fn create_app(mut days: Days, now: NaiveDate, timezone: T, file_path: String) -> Self {
         if !days.contains_day(now) {
             days.add(Day::new(now));
         }
@@ -99,6 +100,7 @@ impl<'a, T: TimeZone> App<'a, T> {
             text_buffer: App::<T>::new_text_area(None),
             popup: None,
             popup_buffer: PopupBuffer::new(),
+            file_path,
         };
         app.load_text();
         app
@@ -267,8 +269,21 @@ impl Day {
 
 #[cfg(test)]
 mod tests {
+    use chrono::Days;
+
     use super::*;
 
     #[test]
-    fn add_day_if_not_exists() {}
+    fn save_500_days() {
+        let mut app = App::new(Utc, TEST_FILE_PATH.to_string());
+        for day in 1..1000 {
+            let date = chrono::Utc::now()
+                .checked_sub_days(Days::new(day))
+                .unwrap()
+                .date_naive();
+            let day = Day::new(date);
+            app.days.add(day);
+            app.save();
+        }
+    }
 }

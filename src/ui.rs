@@ -106,7 +106,12 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
             f.render_widget(app.text_buffer.widget(), rect);
         }
         CurrentScreen::Main => {
+            let height = rect.height as usize;
+            dbg!(height);
             for (index, day) in app.days.days.iter().enumerate() {
+                if index < app.currently_selected - height - 1 {
+                    continue;
+                }
                 if index == app.currently_selected {
                     let list_item = ListItem::new(Line::from(Span::styled(
                         day.date_pretty(),
