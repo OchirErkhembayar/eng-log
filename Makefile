@@ -1,6 +1,6 @@
-fmt:
+f:
 	rustfmt ./src/*.rs
 
-clippy:
+c:
 	cargo clippy
 
