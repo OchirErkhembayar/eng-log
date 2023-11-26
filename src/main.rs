@@ -10,7 +10,7 @@ use update::update;
 mod app;
 mod ui;
 mod update;
-const FILE_PATH: &str = "./test/test.json";
+const FILE_PATH: &str = "./test/test.postcard";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     initialize_panic_handler();

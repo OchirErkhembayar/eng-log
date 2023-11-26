@@ -107,8 +107,8 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     fn load_days(file_path: &str) -> Days {
-        match fs::read_to_string(file_path) {
-            Ok(serialized) => serde_json::from_str(&serialized).unwrap(),
+        match fs::read(file_path) {
+            Ok(serialized) => postcard::from_bytes(&serialized).unwrap(),
             Err(_) => {
                 let days = Days::default();
                 App::<T>::save_inner(&days, file_path);
@@ -154,8 +154,7 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     fn save_inner(days: &Days, file_path: &str) {
-        let serialized = serde_json::to_string(days).unwrap();
-        fs::File::create(file_path).expect("Failed to create file");
+        let serialized: Vec<u8> = postcard::to_allocvec(days).unwrap();
         fs::write(file_path, serialized).expect("Failed to write to file");
     }
 
@@ -272,7 +271,7 @@ mod tests {
     use super::*;
     use chrono::Days;
 
-    const TEST_FILE_PATH: &str = "./test/test.json";
+    const TEST_FILE_PATH: &str = "./test/test.postcard";
 
     #[test]
     fn save_500_days() {
