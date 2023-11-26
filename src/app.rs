@@ -14,8 +14,15 @@ pub enum CurrentScreen {
 }
 
 #[derive(PartialEq, Clone)]
+pub enum Info {
+    About,
+}
+
+#[derive(PartialEq, Clone)]
 pub enum Popup {
     NewDay,
+    ConfDeleteDay,
+    Info(Info),
 }
 
 pub struct PopupBuffer {

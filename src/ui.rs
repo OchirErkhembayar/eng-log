@@ -3,11 +3,13 @@ use ratatui::{
     prelude::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
     text::{Line, Span, Text},
-    widgets::{Block, Borders, List, ListItem, Padding, Paragraph},
+    widgets::{
+        Block, Borders, Clear, List, ListItem, Padding, Paragraph, Scrollbar, ScrollbarState, Wrap,
+    },
     Frame,
 };
 
-use crate::app::{App, CurrentScreen};
+use crate::app::{App, CurrentScreen, Popup};
 
 pub fn ui<T: TimeZone>(f: &mut Frame, app: &mut App<T>) {
     let chunks = Layout::default()
@@ -22,46 +24,82 @@ pub fn ui<T: TimeZone>(f: &mut Frame, app: &mut App<T>) {
         ])
         .split(f.size());
 
-    if app.popup.is_some() {
-        render_popup(f, app);
-    }
-
     render_title(f, app, chunks[0]);
 
     render_body(f, app, chunks[1]);
 
     render_footer(f, app, chunks[2]);
+
+    if let Some(popup) = &app.popup {
+        render_popup(f, app, popup.clone());
+    } else {
+        render_body(f, app, chunks[1]);
+    }
 }
 
-fn render_popup<T: TimeZone>(f: &mut Frame, app: &mut App<T>) {
-    let popup_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .margin(1)
-        .constraints([
-            Constraint::Ratio(1, 3),
-            Constraint::Ratio(1, 3),
-            Constraint::Ratio(1, 3),
-        ])
-        .split(centered_rect(60, 15, f.size()));
+fn render_popup<T: TimeZone>(f: &mut Frame, app: &mut App<T>, popup: Popup) {
+    match popup {
+        Popup::NewDay => {
+            let area = centered_rect(60, 15, f.size());
+            let popup_chunks = Layout::default()
+                .direction(Direction::Horizontal)
+                .margin(1)
+                .constraints([
+                    Constraint::Ratio(1, 3),
+                    Constraint::Ratio(1, 3),
+                    Constraint::Ratio(1, 3),
+                ])
+                .split(area);
 
-    let mut day_block = Block::default().title("Day (1)").borders(Borders::ALL);
-    let mut month_block = Block::default().title("Month (1)").borders(Borders::ALL);
-    let mut year_block = Block::default().title("Year (1970)").borders(Borders::ALL);
+            let mut day_block = Block::default().title("Day (1)").borders(Borders::ALL);
+            let mut month_block = Block::default().title("Month (1)").borders(Borders::ALL);
+            let mut year_block = Block::default().title("Year (1970)").borders(Borders::ALL);
 
-    let active_style = Style::default().bg(Color::Yellow).fg(Color::Black);
-    match app.popup_buffer.currently_selected {
-        0 => day_block = day_block.style(active_style),
-        1 => month_block = month_block.style(active_style),
-        2 => year_block = year_block.style(active_style),
-        _ => panic!("Time to use an enum buddy"),
-    };
+            let active_style = Style::default().bg(Color::Yellow).fg(Color::Black);
+            match app.popup_buffer.currently_selected {
+                0 => day_block = day_block.style(active_style),
+                1 => month_block = month_block.style(active_style),
+                2 => year_block = year_block.style(active_style),
+                _ => panic!("Time to use an enum buddy"),
+            };
 
-    let day_text = Paragraph::new(app.popup_buffer.day.clone()).block(day_block);
-    f.render_widget(day_text, popup_chunks[0]);
-    let month_text = Paragraph::new(app.popup_buffer.month.clone()).block(month_block);
-    f.render_widget(month_text, popup_chunks[1]);
-    let year_text = Paragraph::new(app.popup_buffer.year.clone()).block(year_block);
-    f.render_widget(year_text, popup_chunks[2]);
+            f.render_widget(Clear, area);
+            let day_text = Paragraph::new(app.popup_buffer.day.clone()).block(day_block);
+            f.render_widget(day_text, popup_chunks[0]);
+            let month_text = Paragraph::new(app.popup_buffer.month.clone()).block(month_block);
+            f.render_widget(month_text, popup_chunks[1]);
+            let year_text = Paragraph::new(app.popup_buffer.year.clone()).block(year_block);
+            f.render_widget(year_text, popup_chunks[2]);
+        }
+        Popup::ConfDeleteDay => {
+            let delete_block = Block::default()
+                .title("Are you sure?")
+                .style(Style::default().bg(Color::Red).fg(Color::White))
+                .borders(Borders::ALL);
+            let delete_text = Paragraph::new("y for yes\nAny other key to cancel".to_string())
+                .wrap(Wrap::default())
+                .block(delete_block);
+            let area = centered_rect(60, 15, f.size());
+            f.render_widget(Clear, area);
+            f.render_widget(delete_text, area);
+        }
+        Popup::Info(_) => {
+            let message = "Thanks for trying out the app\n
+There are a few known issues which i'm working on:
+1. Resizing may cause awkward rendering issues so please just quit and restart the app if this occurs\n
+Any  please just send requests and i'll see what I can do";
+            let message_block = Block::default()
+                .title("Info")
+                .borders(Borders::ALL)
+                .style(Style::default().bg(Color::Green).fg(Color::White));
+            let message_text = Paragraph::new(message.to_string())
+                .wrap(Wrap::default())
+                .block(message_block);
+            let area = centered_rect(75, 25, f.size());
+            f.render_widget(Clear, area);
+            f.render_widget(message_text, area);
+        }
+    }
 }
 
 fn render_title<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
@@ -136,18 +174,26 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
                     list_items.push(list_item);
                 }
             }
+            let scrollbar = Scrollbar::new(ratatui::widgets::ScrollbarOrientation::VerticalRight);
+            let mut scrollbar_state =
+                ScrollbarState::new(app.days.days.len()).position(app.currently_selected);
+            let layout = Layout::default()
+                .direction(Direction::Horizontal)
+                .constraints([Constraint::Min(1), Constraint::Length(2)])
+                .split(rect);
+            f.render_stateful_widget(scrollbar, layout[1], &mut scrollbar_state);
             if list_items.is_empty() {
                 let placeholder_text = Paragraph::new("Press n to add a day").block(
                     Block::default()
                         .borders(Borders::NONE)
                         .padding(Padding::horizontal(1)),
                 );
-                f.render_widget(placeholder_text, rect);
+                f.render_widget(placeholder_text, layout[0]);
             } else {
                 let list = List::new(list_items)
                     .block(Block::default().padding(Padding::horizontal(1)))
                     .style(Style::default().fg(Color::White));
-                f.render_widget(list, rect);
+                f.render_widget(list, layout[0]);
             }
         }
     }
@@ -160,11 +206,17 @@ pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
         .split(rect);
 
     let current_keys_hint = {
-        let text = if app.popup.is_some() {
-            "(esc) cancel | (tab | enter) next/save"
+        let text = if let Some(popup) = &app.popup {
+            match popup {
+                Popup::NewDay => "(esc) cancel | (tab | enter) next/save",
+                Popup::ConfDeleteDay => "(esc) cancel | (enter) save | \"y\" save",
+                Popup::Info(_) => "(esc) close",
+            }
         } else {
             match app.current_screen {
-                CurrentScreen::Main => "(q) quit | (enter) view day | (d) delete day | (n) new day",
+                CurrentScreen::Main => {
+                    "(q) quit | (enter) view day | (d) delete day | (n) new day | (i) info"
+                }
                 CurrentScreen::ViewingDay => "(esc) back",
             }
         };

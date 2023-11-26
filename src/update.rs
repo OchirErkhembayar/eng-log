@@ -2,7 +2,7 @@ use chrono::{NaiveDate, TimeZone};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 use tui_textarea::{Input, Key};
 
-use crate::app::{App, CurrentScreen, Day, Popup};
+use crate::app::{App, CurrentScreen, Day, Info, Popup};
 
 pub fn update<T>(key_event: KeyEvent, app: &mut App<T>)
 where
@@ -60,6 +60,16 @@ fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup
             }
             _ => {}
         },
+        Popup::ConfDeleteDay => {
+            match key_event.code {
+                KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
+                    app.remove_day();
+                }
+                _ => {}
+            };
+            app.popup = None;
+        }
+        Popup::Info(_) => app.popup = None,
     }
 }
 
@@ -72,9 +82,8 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent) {
             }
             KeyCode::Up | KeyCode::Char('k') => app.decrement_selected(),
             KeyCode::Down | KeyCode::Char('j') => app.increment_selected(),
-            KeyCode::Char('d') => {
-                app.remove_day();
-            }
+            KeyCode::Char('d') => app.popup = Some(Popup::ConfDeleteDay),
+            KeyCode::Char('i') => app.popup = Some(Popup::Info(Info::About)),
             KeyCode::Char('n') => {
                 app.popup = Some(Popup::NewDay);
             }
