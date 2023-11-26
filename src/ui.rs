@@ -106,13 +106,23 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
             f.render_widget(app.text_buffer.widget(), rect);
         }
         CurrentScreen::Main => {
-            let height = rect.height as usize;
-            dbg!(height);
+            let current = app.currently_selected as isize;
+            if app.max_index == -1 {
+                app.max_index = rect.height as isize;
+            } else if current >= app.max_index {
+                app.max_index += 1;
+                app.min_index += 1;
+            } else if current < app.min_index {
+                app.min_index -= 1;
+                app.max_index -= 1;
+            }
             for (index, day) in app.days.days.iter().enumerate() {
-                if index < app.currently_selected - height - 1 {
+                let index = index as isize;
+                if index < app.min_index || index > app.max_index {
                     continue;
                 }
-                if index == app.currently_selected {
+
+                if index == current {
                     let list_item = ListItem::new(Line::from(Span::styled(
                         day.date_pretty(),
                         Style::default().fg(Color::White).bg(Color::Blue),

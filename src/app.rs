@@ -7,10 +7,6 @@ use serde::{Deserialize, Serialize};
 use std::{char, fs};
 use tui_textarea::{CursorMove, Input, TextArea};
 
-use crate::FILE_PATH;
-
-const TEST_FILE_PATH: &str = "./test/test.json";
-
 #[derive(PartialEq)]
 pub enum CurrentScreen {
     Main,
@@ -76,11 +72,13 @@ pub struct App<'a, T> {
     pub popup: Option<Popup>,
     pub popup_buffer: PopupBuffer,
     file_path: String,
+    pub min_index: isize, // kind of a hack. think of a better solution
+    pub max_index: isize, // kind of a hack. think of a better solution
 }
 
 impl<'a, T: TimeZone> App<'a, T> {
     pub fn new(timezone: T, file_path: String) -> Self {
-        let days = Self::load_days();
+        let days = Self::load_days(file_path.as_str());
         let now = Utc::now().date_naive();
         Self::create_app(days, now, timezone, file_path)
     }
@@ -101,17 +99,19 @@ impl<'a, T: TimeZone> App<'a, T> {
             popup: None,
             popup_buffer: PopupBuffer::new(),
             file_path,
+            min_index: 0,
+            max_index: -1,
         };
         app.load_text();
         app
     }
 
-    fn load_days() -> Days {
-        match fs::read_to_string(FILE_PATH) {
+    fn load_days(file_path: &str) -> Days {
+        match fs::read_to_string(file_path) {
             Ok(serialized) => serde_json::from_str(&serialized).unwrap(),
             Err(_) => {
                 let days = Days::default();
-                App::<T>::save_inner(&days);
+                App::<T>::save_inner(&days, file_path);
                 days
             }
         }
@@ -143,20 +143,20 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     pub fn save(&mut self) {
-        App::<T>::save_inner(&self.days);
+        App::<T>::save_inner(&self.days, &self.file_path);
     }
 
     pub fn finish_editing(&mut self) {
         if !self.days.days.is_empty() {
             self.days.days[self.currently_selected].content = Vec::from(self.text_buffer.lines());
         }
-        App::<T>::save_inner(&self.days);
+        App::<T>::save_inner(&self.days, &self.file_path);
     }
 
-    fn save_inner(days: &Days) {
+    fn save_inner(days: &Days, file_path: &str) {
         let serialized = serde_json::to_string(days).unwrap();
-        fs::File::create(FILE_PATH).expect("Failed to create file");
-        fs::write(FILE_PATH, serialized).expect("Failed to write to file");
+        fs::File::create(file_path).expect("Failed to create file");
+        fs::write(file_path, serialized).expect("Failed to write to file");
     }
 
     pub fn new_text_area(input: Option<Vec<String>>) -> TextArea<'a> {
@@ -235,13 +235,13 @@ impl PartialEq for Day {
 
 impl PartialOrd for Day {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.date.cmp(&other.date))
+        Some(self.cmp(other))
     }
 }
 
 impl Ord for Day {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.date.cmp(&other.date)
+        self.date.cmp(&other.date).reverse()
     }
 }
 
@@ -269,9 +269,10 @@ impl Day {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use chrono::Days;
 
-    use super::*;
+    const TEST_FILE_PATH: &str = "./test/test.json";
 
     #[test]
     fn save_500_days() {

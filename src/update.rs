@@ -39,6 +39,7 @@ fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup
                             app.currently_selected = app.days.add(day);
                             app.current_screen = CurrentScreen::ViewingDay;
                             app.save();
+                            app.load_text();
                         }
                         app.popup_buffer.clear();
                         app.popup = None;
