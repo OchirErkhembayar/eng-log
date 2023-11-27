@@ -1,18 +1,51 @@
-use app::App;
-use chrono::{TimeZone, Utc};
+use app::{App, Day};
+use chrono::{Days, TimeZone, Utc};
 use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event};
 use crossterm::terminal::{disable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen};
 use ratatui::prelude::{Backend, CrosstermBackend};
 use ratatui::Terminal;
-use std::io;
+use std::process::exit;
+use std::{env, io};
 use update::update;
 
 mod app;
 mod ui;
 mod update;
-const FILE_PATH: &str = "./test/test.postcard";
+
+const DEV_FILE_PATH: &str = "./dev.postcard";
+const SEEDED_FILE_PATH: &str = "./seed.postcard";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args: Vec<_> = env::args().collect();
+
+    let default_environment = "dev".to_string();
+    let environment = args.get(1).unwrap_or_else(|| {
+        println!("Defaulting to dev environment");
+        &default_environment
+    });
+
+    let file_path = match environment.as_str() {
+        "dev" => DEV_FILE_PATH,
+        "seed" => {
+            let mut app = App::new(Utc, SEEDED_FILE_PATH.to_string());
+            for day in 0..1000 {
+                let date = chrono::Utc::now()
+                    .checked_sub_days(Days::new(day))
+                    .unwrap()
+                    .date_naive();
+                let mut day = Day::new(date);
+                day.content.push("A note!".to_string());
+                app.days.add(day);
+                app.save();
+            }
+            SEEDED_FILE_PATH
+        }
+        _ => {
+            println!("Wrong environment. Expected \"dev\" or \"seed\"");
+            exit(1);
+        }
+    };
+
     initialize_panic_handler();
     crossterm::terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -21,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(Utc, FILE_PATH.to_string());
+    let mut app = App::new(Utc, file_path.to_string());
 
     run(&mut terminal, &mut app)?;
 

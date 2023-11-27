@@ -1,2 +1,4 @@
 /target
-tests/test.postcard
+test/test.postcard
+dev.postcard
+seed.postcard

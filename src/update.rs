@@ -1,5 +1,6 @@
 use chrono::{NaiveDate, TimeZone};
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use ratatui::style::Modifier;
 use tui_textarea::{Input, Key};
 
 use crate::app::{App, CurrentScreen, Day, Info, Popup};
@@ -62,7 +63,7 @@ fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup
         },
         Popup::ConfDeleteDay => {
             match key_event.code {
-                KeyCode::Enter | KeyCode::Char('y') | KeyCode::Char('Y') => {
+                KeyCode::Char('y') | KeyCode::Char('Y') => {
                     app.remove_day();
                 }
                 _ => {}
@@ -82,6 +83,21 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent) {
             }
             KeyCode::Up | KeyCode::Char('k') => app.decrement_selected(),
             KeyCode::Down | KeyCode::Char('j') => app.increment_selected(),
+            KeyCode::Char('u') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                if app.currently_selected < 10 {
+                    app.currently_selected = 0;
+                } else {
+                    app.currently_selected -= 10;
+                }
+            }
+            KeyCode::Char('d') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                let max_index = app.days.days.len() - 1;
+                if max_index - app.currently_selected < 10 {
+                    app.currently_selected = max_index;
+                } else {
+                    app.currently_selected += 10;
+                }
+            }
             KeyCode::Char('d') => app.popup = Some(Popup::ConfDeleteDay),
             KeyCode::Char('i') => app.popup = Some(Popup::Info(Info::About)),
             KeyCode::Char('n') => {

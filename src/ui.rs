@@ -32,8 +32,6 @@ pub fn ui<T: TimeZone>(f: &mut Frame, app: &mut App<T>) {
 
     if let Some(popup) = &app.popup {
         render_popup(f, app, popup.clone());
-    } else {
-        render_body(f, app, chunks[1]);
     }
 }
 
@@ -86,8 +84,9 @@ fn render_popup<T: TimeZone>(f: &mut Frame, app: &mut App<T>, popup: Popup) {
         Popup::Info(_) => {
             let message = "Thanks for trying out the app\n
 There are a few known issues which i'm working on:
-1. Resizing may cause awkward rendering issues so please just quit and restart the app if this occurs\n
-Any  please just send requests and i'll see what I can do";
+1. Resizing may cause awkward rendering issues so please just quit and restart the app if this occurs
+2. Control scrolling may cause the selected day to go off screen.\n
+Any bugs found please just send requests and i'll see what I can do";
             let message_block = Block::default()
                 .title("Info")
                 .borders(Borders::ALL)
@@ -215,7 +214,7 @@ pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
         } else {
             match app.current_screen {
                 CurrentScreen::Main => {
-                    "(q) quit | (enter) view day | (d) delete day | (n) new day | (i) info"
+                    "(q) quit | (enter) view day | (d) delete day | (n) new day | (i) info | vim"
                 }
                 CurrentScreen::ViewingDay => "(esc) back",
             }
