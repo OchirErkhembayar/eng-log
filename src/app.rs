@@ -162,7 +162,7 @@ impl<'a, T: TimeZone> App<'a, T> {
 
     fn save_inner(days: &Days, file_path: &str) {
         let serialized: Vec<u8> = postcard::to_allocvec(days).unwrap();
-        fs::File::create(file_path);
+        let _ = fs::File::create(file_path);
         fs::write(file_path, serialized).expect("Failed to write to file");
     }
 
