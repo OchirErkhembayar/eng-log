@@ -31,11 +31,11 @@ pub fn ui<T: TimeZone>(f: &mut Frame, app: &mut App<T>) {
     render_footer(f, app, chunks[2]);
 
     if let Some(popup) = &app.popup {
-        render_popup(f, app, popup.clone());
+        render_popup(f, app, popup);
     }
 }
 
-fn render_popup<T: TimeZone>(f: &mut Frame, app: &mut App<T>, popup: Popup) {
+fn render_popup<T: TimeZone>(f: &mut Frame, app: &App<T>, popup: &Popup) {
     match popup {
         Popup::NewDay => {
             let area = centered_rect(60, 15, f.size());
@@ -101,7 +101,7 @@ Any bugs found please just send requests and i'll see what I can do";
     }
 }
 
-fn render_title<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
+fn render_title<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
     let title_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -198,7 +198,7 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
     }
 }
 
-pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
+pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
     let footer_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Length(1)])

@@ -1,6 +1,5 @@
 use chrono::{NaiveDate, TimeZone};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use ratatui::style::Modifier;
 use tui_textarea::{Input, Key};
 
 use crate::app::{App, CurrentScreen, Day, Info, Popup};
@@ -100,20 +99,13 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent) {
             }
             KeyCode::Char('d') => app.popup = Some(Popup::ConfDeleteDay),
             KeyCode::Char('i') => app.popup = Some(Popup::Info(Info::About)),
-            KeyCode::Char('n') => {
-                app.popup = Some(Popup::NewDay);
-            }
-            KeyCode::Char(char) => {
-                if char == 'q' {
-                    app.should_quit = true;
-                }
-            }
+            KeyCode::Char('n') => app.popup = Some(Popup::NewDay),
+            KeyCode::Char('q') => app.should_quit = true,
             _ => {}
         },
         CurrentScreen::ViewingDay => {
             match key_event.into() {
                 Input { key: Key::Esc, .. } => {
-                    app.current_screen = CurrentScreen::Main;
                     app.finish_editing()
                 }
                 input => app.input_to_current_day(input),

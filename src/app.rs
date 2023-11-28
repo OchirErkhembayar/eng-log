@@ -154,6 +154,7 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     pub fn finish_editing(&mut self) {
+        self.current_screen = CurrentScreen::Main;
         if !self.days.days.is_empty() {
             self.days.days[self.currently_selected].content = Vec::from(self.text_buffer.lines());
         }
