@@ -9,6 +9,7 @@ use std::{env, io};
 use update::update;
 
 mod app;
+mod save;
 mod ui;
 mod update;
 

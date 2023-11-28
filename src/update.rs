@@ -2,7 +2,10 @@ use chrono::{NaiveDate, TimeZone};
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use tui_textarea::{Input, Key};
 
-use crate::app::{App, CurrentScreen, Day, Info, Popup};
+use crate::{
+    app::{App, CurrentScreen, Day, Info, Popup},
+    save::save,
+};
 
 pub fn update<T>(key_event: KeyEvent, app: &mut App<T>)
 where
@@ -97,6 +100,9 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent) {
                     app.currently_selected += 10;
                 }
             }
+            KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                save(&app.days)
+            }
             KeyCode::Char('d') => app.popup = Some(Popup::ConfDeleteDay),
             KeyCode::Char('i') => app.popup = Some(Popup::Info(Info::About)),
             KeyCode::Char('n') => app.popup = Some(Popup::NewDay),
@@ -105,9 +111,7 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent) {
         },
         CurrentScreen::ViewingDay => {
             match key_event.into() {
-                Input { key: Key::Esc, .. } => {
-                    app.finish_editing()
-                }
+                Input { key: Key::Esc, .. } => app.finish_editing(),
                 input => app.input_to_current_day(input),
             };
         }
