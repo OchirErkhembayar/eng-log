@@ -132,12 +132,12 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     pub fn load_text(&mut self) {
-        if self.days.days.is_empty() {
+        let filtered_days: Vec<_> = self.filtered_days().collect();
+        if filtered_days.is_empty() {
             self.text_buffer = Self::day_text_area(None);
         } else {
-            self.text_buffer = Self::day_text_area(Some(
-                self.filtered_days().collect::<Vec<_>>()[self.currently_selected].content_into(),
-            ));
+            self.text_buffer =
+                Self::day_text_area(Some(filtered_days[self.currently_selected].content_into()));
         }
     }
 
@@ -149,7 +149,7 @@ impl<'a, T: TimeZone> App<'a, T> {
         self.filter_buffer.input(input);
         self.filter = Some(self.filter_buffer.lines().join(""));
         let count = self.filtered_days().count();
-        if self.currently_selected >= count {
+        if self.currently_selected >= count && count > 0 {
             self.currently_selected = count - 1;
         }
     }
@@ -157,6 +157,10 @@ impl<'a, T: TimeZone> App<'a, T> {
     // This count is getting relied on quite heavily. Might want to cache it in a struct.
     pub fn filtered_days(&self) -> impl Iterator<Item = &Day> {
         self.days.iter_filtered(self.filter.as_deref())
+    }
+
+    pub fn filtered_days_mut(&mut self) -> impl Iterator<Item = &mut Day> {
+        self.days.iter_mut_filtered(self.filter.as_deref())
     }
 
     pub fn increment_selected(&mut self) {
@@ -176,8 +180,11 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     pub fn update_day_from_buffer(&mut self) {
-        if !self.days.days.is_empty() {
-            self.days.days[self.currently_selected].content = Vec::from(self.text_buffer.lines());
+        let selected = self.currently_selected;
+        let content = Vec::from(self.text_buffer.lines());
+        let mut filtered_days: Vec<_> = self.filtered_days_mut().collect();
+        if !filtered_days.is_empty() {
+            filtered_days[selected].content = content;
         }
         App::<T>::save_inner(&self.days, &self.file_path);
     }
@@ -248,6 +255,20 @@ impl Days {
         Self {
             days: Vec::from([Day::new(chrono::Utc::now().date_naive())]),
         }
+    }
+
+    pub fn iter_mut_filtered<'a>(
+        &'a mut self,
+        string: Option<&'a str>,
+    ) -> impl Iterator<Item = &mut Day> + 'a {
+        self.days.iter_mut().filter(move |d| {
+            let date_str = d.date.format("%d/%m/%Y").to_string();
+            if let Some(string) = string {
+                date_str.contains(string)
+            } else {
+                true
+            }
+        })
     }
 
     pub fn iter_filtered<'a>(&'a self, string: Option<&'a str>) -> impl Iterator<Item = &Day> + 'a {

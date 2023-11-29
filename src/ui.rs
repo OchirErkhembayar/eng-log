@@ -125,7 +125,8 @@ fn render_title<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
 
     let content = &match app.current_screen {
         CurrentScreen::Main(_) => "All days".to_string(),
-        CurrentScreen::ViewingDay => app.days.days[app.currently_selected]
+        CurrentScreen::ViewingDay => app.filtered_days().collect::<Vec<_>>()
+            [app.currently_selected]
             .date
             .format("%-d %B, %C%y")
             .to_string(),
