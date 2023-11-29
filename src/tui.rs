@@ -14,12 +14,15 @@ type CrosstermTerminal = ratatui::Terminal<CrosstermBackend<Stdout>>;
 
 pub struct Tui {
     terminal: CrosstermTerminal,
-    pub events: EventHandler,
+    pub event_handler: EventHandler,
 }
 
 impl Tui {
     pub fn new(terminal: CrosstermTerminal, events: EventHandler) -> Self {
-        Self { terminal, events }
+        Self {
+            terminal,
+            event_handler: events,
+        }
     }
 
     pub fn enter(&mut self) -> Result<()> {

@@ -124,7 +124,7 @@ fn render_title<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
     .alignment(Alignment::Center);
 
     let content = &match app.current_screen {
-        CurrentScreen::Main => "All days".to_string(),
+        CurrentScreen::Main(_) => "All days".to_string(),
         CurrentScreen::ViewingDay => app.days.days[app.currently_selected]
             .date
             .format("%-d %B, %C%y")
@@ -147,18 +147,18 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
         CurrentScreen::ViewingDay => {
             f.render_widget(app.text_buffer.widget(), rect);
         }
-        CurrentScreen::Main => {
+        CurrentScreen::Main(_) => {
             let current = app.currently_selected as isize;
             if app.max_index == -1 {
                 app.max_index = rect.height as isize;
-            } else if current >= app.max_index {
+            } else if current >= app.max_index - 2 {
                 app.max_index += 1;
                 app.min_index += 1;
             } else if current < app.min_index {
                 app.min_index -= 1;
                 app.max_index -= 1;
             }
-            for (index, day) in app.days.iter().enumerate() {
+            for (index, day) in app.filtered_days().enumerate() {
                 let index = index as isize;
                 if index < app.min_index || index > app.max_index {
                     continue;
@@ -183,19 +183,34 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
                 ScrollbarState::new(app.days.days.len()).position(app.currently_selected);
             let layout = Layout::default()
                 .direction(Direction::Horizontal)
-                .constraints([Constraint::Min(1), Constraint::Length(2)])
+                .constraints([
+                    Constraint::Min(10),
+                    Constraint::Percentage(70),
+                    Constraint::Length(2),
+                ])
                 .split(rect);
-            f.render_stateful_widget(scrollbar, layout[1], &mut scrollbar_state);
+            f.render_stateful_widget(scrollbar, layout[2], &mut scrollbar_state);
+            if !app.days.days.is_empty() {
+                app.load_text();
+                app.text_buffer.set_cursor_style(Style::default());
+                f.render_widget(app.text_buffer.widget(), layout[1]);
+            }
             if list_items.is_empty() {
                 let placeholder_text = Paragraph::new("Press n to add a day").block(
                     Block::default()
-                        .borders(Borders::NONE)
+                        .borders(Borders::ALL)
+                        .title("Days")
                         .padding(Padding::horizontal(1)),
                 );
                 f.render_widget(placeholder_text, layout[0]);
             } else {
                 let list = List::new(list_items)
-                    .block(Block::default().padding(Padding::horizontal(1)))
+                    .block(
+                        Block::default()
+                            .padding(Padding::horizontal(1))
+                            .title("Days")
+                            .borders(Borders::ALL),
+                    )
                     .style(Style::default().fg(Color::White));
                 f.render_widget(list, layout[0]);
             }
@@ -218,8 +233,15 @@ pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
             }
         } else {
             match app.current_screen {
-                CurrentScreen::Main => {
-                    "(q) quit | (enter) view day | (d) delete day | (n) new day | (i) info | vim"
+                CurrentScreen::Main(true) => "(esc) cancel | (enter) done",
+                CurrentScreen::Main(false) => {
+                    //TODO these are getting pretty long.
+                    // Add some code for "extended menu" or maybe split it into two with a toggle
+                    if app.filter.is_some() {
+                        "(q) quit | (enter) edit day | (esc) clear filter | (d) delete day | (n) new day | (i) info | (:) filter | vim motions if you're cool"
+                    } else {
+                        "(q) quit | (enter) edit day | (d) delete day | (n) new day | (i) info | (:) filter | vim motions if you're cool"
+                    }
                 }
                 CurrentScreen::ViewingDay => "(esc) back",
             }
@@ -232,6 +254,9 @@ pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
     let key_hints_footer = Paragraph::new(Line::from(current_keys_hint))
         .block(Block::default().padding(Padding::horizontal(1)));
 
+    if let CurrentScreen::Main(true) = app.current_screen {
+        f.render_widget(app.filter_buffer.widget(), footer_chunks[0]);
+    }
     f.render_widget(key_hints_footer, footer_chunks[1]);
 }
 

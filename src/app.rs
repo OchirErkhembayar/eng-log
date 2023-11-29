@@ -1,4 +1,4 @@
-use chrono::{Datelike, NaiveDate, TimeZone, Utc};
+use chrono::{NaiveDate, TimeZone, Utc};
 use ratatui::{
     style::{Color, Style},
     widgets::{Block, Borders, Padding},
@@ -9,7 +9,8 @@ use tui_textarea::{CursorMove, Input, TextArea};
 
 #[derive(PartialEq)]
 pub enum CurrentScreen {
-    Main,
+    // determines whether or not we're typing into the filter
+    Main(bool),
     ViewingDay,
 }
 
@@ -76,12 +77,14 @@ pub struct App<'a, T> {
     pub date: chrono::NaiveDate,
     pub currently_selected: usize,
     pub text_buffer: TextArea<'a>,
+    pub filter_buffer: TextArea<'a>,
     pub popup: Option<Popup>,
     pub popup_buffer: PopupBuffer,
     file_path: String,
     pub min_index: isize, // kind of a hack. think of a better solution
     pub max_index: isize, // kind of a hack. think of a better solution
     pub saving: bool,
+    pub filter: Option<String>,
 }
 
 impl<'a, T: TimeZone> App<'a, T> {
@@ -103,13 +106,15 @@ impl<'a, T: TimeZone> App<'a, T> {
             timezone,
             date: chrono::Utc::now().date_naive(),
             currently_selected,
-            text_buffer: App::<T>::new_text_area(None),
+            text_buffer: App::<T>::day_text_area(None),
+            filter_buffer: App::<T>::day_text_area(None),
             popup: None,
             popup_buffer: PopupBuffer::new(),
             file_path,
             min_index: 0,
             max_index: -1,
             saving: false,
+            filter: None,
         };
         app.load_text();
         app
@@ -128,15 +133,24 @@ impl<'a, T: TimeZone> App<'a, T> {
 
     pub fn load_text(&mut self) {
         if self.days.days.is_empty() {
-            self.text_buffer = Self::new_text_area(None);
+            self.text_buffer = Self::day_text_area(None);
         } else {
             self.text_buffer =
-                Self::new_text_area(Some(self.days.days[self.currently_selected].content_into()));
+                Self::day_text_area(Some(self.days.days[self.currently_selected].content_into()));
         }
     }
 
     pub fn input_to_current_day(&mut self, input: Input) {
         self.text_buffer.input(input);
+    }
+
+    pub fn input_to_filter_buffer(&mut self, input: Input) {
+        self.filter_buffer.input(input);
+        self.filter = Some(self.filter_buffer.lines().join(""));
+    }
+
+    pub fn filtered_days(&self) -> impl Iterator<Item = &Day> {
+        self.days.iter_filtered(self.filter.as_deref())
     }
 
     pub fn increment_selected(&mut self) {
@@ -155,8 +169,7 @@ impl<'a, T: TimeZone> App<'a, T> {
         App::<T>::save_inner(&self.days, &self.file_path);
     }
 
-    pub fn finish_editing(&mut self) {
-        self.current_screen = CurrentScreen::Main;
+    pub fn update_day_from_buffer(&mut self) {
         if !self.days.days.is_empty() {
             self.days.days[self.currently_selected].content = Vec::from(self.text_buffer.lines());
         }
@@ -169,7 +182,7 @@ impl<'a, T: TimeZone> App<'a, T> {
         fs::write(file_path, serialized).expect("Failed to write to file");
     }
 
-    pub fn new_text_area(input: Option<Vec<String>>) -> TextArea<'a> {
+    pub fn day_text_area(input: Option<Vec<String>>) -> TextArea<'a> {
         let mut textarea = match input {
             Some(input) => TextArea::new(input),
             None => TextArea::default(),
@@ -187,6 +200,25 @@ impl<'a, T: TimeZone> App<'a, T> {
         textarea.move_cursor(CursorMove::Bottom);
         textarea.move_cursor(CursorMove::End);
         textarea
+    }
+
+    fn empty_text_area() -> TextArea<'a> {
+        let mut textarea = TextArea::default();
+        textarea.set_style(Style::default().fg(Color::White));
+        textarea.set_cursor_line_style(Style::default());
+        textarea.set_block(
+            Block::default()
+                .style(Style::default().fg(Color::White))
+                .borders(Borders::NONE)
+                .padding(Padding::horizontal(1)),
+        );
+        textarea.move_cursor(CursorMove::Bottom);
+        textarea.move_cursor(CursorMove::End);
+        textarea
+    }
+
+    pub fn init_filter_text(&mut self) {
+        self.filter_buffer = Self::empty_text_area();
     }
 
     pub fn remove_day(&mut self) {
@@ -212,6 +244,17 @@ impl Days {
         }
     }
 
+    pub fn iter_filtered<'a>(&'a self, string: Option<&'a str>) -> impl Iterator<Item = &Day> + 'a {
+        self.days.iter().filter(move |d| {
+            let date_str = d.date.format("%d/%m/%Y").to_string();
+            if let Some(string) = string {
+                date_str.contains(string)
+            } else {
+                true
+            }
+        })
+    }
+
     fn len(&self) -> usize {
         self.days.len()
     }
@@ -230,7 +273,7 @@ impl Days {
         self.days.iter().any(|d| d.date == date)
     }
 
-    pub fn iter(&self) -> std::slice::Iter<Day> {
+    pub fn iter(&self) -> impl Iterator<Item = &Day> {
         self.days.iter()
     }
 }
@@ -268,12 +311,7 @@ impl Day {
     }
 
     pub fn date_pretty(&self) -> String {
-        format!(
-            "{}/{}/{}",
-            self.date.day(),
-            self.date.month(),
-            self.date.year()
-        )
+        self.date.format("%d/%m/%Y").to_string()
     }
 
     pub fn content_into(&self) -> Vec<String> {

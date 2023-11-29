@@ -19,7 +19,7 @@ where
             if let Some(popup) = &app.popup {
                 update_popup(app, key_event, popup.clone());
             } else {
-                update_screen(app, key_event, &tui.events);
+                update_screen(app, key_event, &tui.event_handler);
             }
         }
         Event::Saving(state) => app.saving = state,
@@ -84,7 +84,20 @@ fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup
 
 fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, event_handler: &EventHandler) {
     match app.current_screen {
-        CurrentScreen::Main => match key_event.code {
+        CurrentScreen::Main(true) => match key_event.into() {
+            Input {
+                key: Key::Enter, ..
+            } => {
+                app.current_screen = CurrentScreen::Main(false);
+            }
+            Input { key: Key::Esc, .. } => {
+                app.filter = None;
+                app.current_screen = CurrentScreen::Main(false);
+            }
+            input => app.input_to_filter_buffer(input),
+        },
+        CurrentScreen::Main(false) => match key_event.code {
+            KeyCode::Esc => app.filter = None,
             KeyCode::Enter | KeyCode::Char('l') | KeyCode::Right => {
                 app.load_text();
                 app.current_screen = CurrentScreen::ViewingDay;
@@ -92,6 +105,9 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, event_handl
             KeyCode::Up | KeyCode::Char('k') => app.decrement_selected(),
             KeyCode::Down | KeyCode::Char('j') => app.increment_selected(),
             KeyCode::Char('u') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                // This is causing the cursor to go off screen because the top
+                // and bottom are only incremented by 1. Incrementing them by however much
+                // the difference was caused some rendering bugs. Will need to look into this.
                 if app.currently_selected < 10 {
                     app.currently_selected = 0;
                 } else {
@@ -110,12 +126,18 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, event_handl
             KeyCode::Char('i') => app.popup = Some(Popup::Info(Info::About)),
             KeyCode::Char('n') => app.popup = Some(Popup::NewDay),
             KeyCode::Char('q') => app.should_quit = true,
+            KeyCode::Char(':') => {
+                app.current_screen = CurrentScreen::Main(true);
+                app.init_filter_text();
+            }
             _ => {}
         },
         CurrentScreen::ViewingDay => {
             match key_event.into() {
                 Input { key: Key::Esc, .. } => {
-                    app.finish_editing();
+                    app.update_day_from_buffer();
+                    app.current_screen = CurrentScreen::Main(false);
+                    //TODO remove this useless testing stuff and use Tokio
                     let sender = event_handler.sender();
                     std::thread::spawn(move || {
                         sender.send(Event::Saving(true)).and_then(|_| {

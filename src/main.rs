@@ -1,15 +1,18 @@
 use anyhow::Result;
 use app::{App, Day};
+use arg::Cli;
 use chrono::{Days, TimeZone, Utc};
+use clap::Parser;
 use event::EventHandler;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
+use std::io;
 use std::process::exit;
-use std::{env, io};
 use tui::Tui;
 use update::update;
 
 mod app;
+mod arg;
 mod event;
 mod tui;
 mod ui;
@@ -19,19 +22,15 @@ const DEV_FILE_PATH: &str = "./dev.postcard";
 const SEEDED_FILE_PATH: &str = "./seed.postcard";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<_> = env::args().collect();
+    let cli = Cli::parse();
 
-    let default_environment = "dev".to_string();
-    let environment = args.get(1).unwrap_or_else(|| {
-        println!("Defaulting to dev environment");
-        &default_environment
-    });
+    let environment = cli.environment.unwrap_or("dev".to_string());
 
     let file_path = match environment.as_str() {
         "dev" => DEV_FILE_PATH,
         "seed" => {
             let mut app = App::new(Utc, SEEDED_FILE_PATH.to_string());
-            for day in 0..1000 {
+            for day in 0..500 {
                 let date = chrono::Utc::now()
                     .checked_sub_days(Days::new(day))
                     .unwrap()
@@ -71,7 +70,7 @@ where
 {
     while !app.should_quit {
         tui.draw(app)?;
-        let event = tui.events.next()?;
+        let event = tui.event_handler.next()?;
         update(event, app, tui);
     }
 
