@@ -89,6 +89,10 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, event_handl
                 key: Key::Enter, ..
             } => {
                 app.current_screen = CurrentScreen::Main(false);
+                let count = app.filtered_days().count();
+                if app.currently_selected >= count {
+                    app.currently_selected = count - 1;
+                }
             }
             Input { key: Key::Esc, .. } => {
                 app.filter = None;

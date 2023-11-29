@@ -149,12 +149,13 @@ impl<'a, T: TimeZone> App<'a, T> {
         self.filter = Some(self.filter_buffer.lines().join(""));
     }
 
+    // This count is getting relied on quite heavily. Might want to cache it in a struct.
     pub fn filtered_days(&self) -> impl Iterator<Item = &Day> {
         self.days.iter_filtered(self.filter.as_deref())
     }
 
     pub fn increment_selected(&mut self) {
-        if self.currently_selected < self.days.len() - 1 {
+        if self.currently_selected < self.filtered_days().count() - 1 {
             self.currently_selected += 1;
         }
     }
