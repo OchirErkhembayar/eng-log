@@ -1,23 +1,29 @@
+use std::time::Duration;
+
 use chrono::{NaiveDate, TimeZone};
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tui_textarea::{Input, Key};
 
 use crate::{
     app::{App, CurrentScreen, Day, Info, Popup},
-    save::save,
+    event::{Event, EventHandler},
+    tui::Tui,
 };
 
-pub fn update<T>(key_event: KeyEvent, app: &mut App<T>)
+pub fn update<T>(event: Event, app: &mut App<T>, tui: &Tui)
 where
     T: TimeZone,
 {
-    if key_event.kind != KeyEventKind::Press {
-        return;
-    }
-    if let Some(popup) = &app.popup {
-        update_popup(app, key_event, popup.clone());
-    } else {
-        update_screen(app, key_event);
+    match event {
+        Event::Key(key_event) => {
+            if let Some(popup) = &app.popup {
+                update_popup(app, key_event, popup.clone());
+            } else {
+                update_screen(app, key_event, &tui.events);
+            }
+        }
+        Event::Saving(state) => app.saving = state,
+        Event::Tick => {}
     }
 }
 
@@ -76,7 +82,7 @@ fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup
     }
 }
 
-fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent) {
+fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, event_handler: &EventHandler) {
     match app.current_screen {
         CurrentScreen::Main => match key_event.code {
             KeyCode::Enter | KeyCode::Char('l') | KeyCode::Right => {
@@ -100,9 +106,6 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent) {
                     app.currently_selected += 10;
                 }
             }
-            KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                save(&app.days)
-            }
             KeyCode::Char('d') => app.popup = Some(Popup::ConfDeleteDay),
             KeyCode::Char('i') => app.popup = Some(Popup::Info(Info::About)),
             KeyCode::Char('n') => app.popup = Some(Popup::NewDay),
@@ -111,7 +114,16 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent) {
         },
         CurrentScreen::ViewingDay => {
             match key_event.into() {
-                Input { key: Key::Esc, .. } => app.finish_editing(),
+                Input { key: Key::Esc, .. } => {
+                    app.finish_editing();
+                    let sender = event_handler.sender();
+                    std::thread::spawn(move || {
+                        sender.send(Event::Saving(true)).and_then(|_| {
+                            std::thread::sleep(Duration::from_secs(2));
+                            sender.send(Event::Saving(false))
+                        })
+                    });
+                }
                 input => app.input_to_current_day(input),
             };
         }

@@ -111,8 +111,13 @@ fn render_title<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
         .borders(Borders::ALL)
         .padding(Padding::horizontal(2));
 
+    let title_message = if app.saving {
+        "Saving..."
+    } else {
+        "Engineering Log"
+    };
     let title = Paragraph::new(Text::styled(
-        "Engineering Log",
+        title_message,
         Style::default().fg(Color::White).bold(),
     ))
     .block(title_block.clone())
@@ -153,7 +158,7 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
                 app.min_index -= 1;
                 app.max_index -= 1;
             }
-            for (index, day) in app.days.days.iter().enumerate() {
+            for (index, day) in app.days.iter().enumerate() {
                 let index = index as isize;
                 if index < app.min_index || index > app.max_index {
                     continue;

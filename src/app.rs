@@ -81,6 +81,7 @@ pub struct App<'a, T> {
     file_path: String,
     pub min_index: isize, // kind of a hack. think of a better solution
     pub max_index: isize, // kind of a hack. think of a better solution
+    pub saving: bool,
 }
 
 impl<'a, T: TimeZone> App<'a, T> {
@@ -94,7 +95,7 @@ impl<'a, T: TimeZone> App<'a, T> {
         if !days.contains_day(now) {
             days.add(Day::new(now));
         }
-        let currently_selected = days.days.iter().position(|d| d.date == now).unwrap();
+        let currently_selected = days.iter().position(|d| d.date == now).unwrap();
         let mut app = App {
             days,
             should_quit: false,
@@ -108,6 +109,7 @@ impl<'a, T: TimeZone> App<'a, T> {
             file_path,
             min_index: 0,
             max_index: -1,
+            saving: false,
         };
         app.load_text();
         app
@@ -226,6 +228,10 @@ impl Days {
 
     fn contains_day(&self, date: NaiveDate) -> bool {
         self.days.iter().any(|d| d.date == date)
+    }
+
+    pub fn iter(&self) -> std::slice::Iter<Day> {
+        self.days.iter()
     }
 }
 
