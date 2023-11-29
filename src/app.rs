@@ -135,8 +135,9 @@ impl<'a, T: TimeZone> App<'a, T> {
         if self.days.days.is_empty() {
             self.text_buffer = Self::day_text_area(None);
         } else {
-            self.text_buffer =
-                Self::day_text_area(Some(self.days.days[self.currently_selected].content_into()));
+            self.text_buffer = Self::day_text_area(Some(
+                self.filtered_days().collect::<Vec<_>>()[self.currently_selected].content_into(),
+            ));
         }
     }
 
@@ -147,6 +148,10 @@ impl<'a, T: TimeZone> App<'a, T> {
     pub fn input_to_filter_buffer(&mut self, input: Input) {
         self.filter_buffer.input(input);
         self.filter = Some(self.filter_buffer.lines().join(""));
+        let count = self.filtered_days().count();
+        if self.currently_selected >= count {
+            self.currently_selected = count - 1;
+        }
     }
 
     // This count is getting relied on quite heavily. Might want to cache it in a struct.
