@@ -13,6 +13,7 @@ use update::update;
 
 mod app;
 mod arg;
+mod config;
 mod event;
 mod tui;
 mod ui;
@@ -48,11 +49,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    let cfg: config::Config = confy::load("eng-log", None)?;
+    let timezone = match cfg.timezone.as_str() {
+        "UTC" => Utc,
+        _ => Utc,
+    };
+
     let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
     let terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(Utc, file_path.to_string());
+    let mut app = App::new(timezone, file_path.to_string());
 
     let eventhandler = EventHandler::new(250);
     let mut tui = Tui::new(terminal, eventhandler);

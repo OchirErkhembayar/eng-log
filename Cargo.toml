@@ -13,6 +13,8 @@ serde = { version = "1.0", features = ["derive"] }
 
 postcard = { version = "1.0.7", features = ["alloc"] }
 chrono = { version = "0.4.31", features = ["serde"] }
-dirs-next = "2.0.0"
 anyhow = "1.0.75"
 clap = { version = "4.4.10", features = ["derive"] }
+dirs-next = "2.0.0"
+confy = "0.5.1"
+serde_derive = "1.0.193"
