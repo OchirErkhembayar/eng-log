@@ -98,6 +98,19 @@ Any bugs found please just send requests and i'll see what I can do";
             f.render_widget(Clear, area);
             f.render_widget(message_text, area);
         }
+        Popup::Config(_) => {
+            let timezone = &app.config.timezone;
+            let message_block = Block::default()
+                .title("Config")
+                .borders(Borders::ALL)
+                .style(Style::default().bg(Color::Blue).fg(Color::White));
+            let message_text = Paragraph::new(format!("Timezone: {timezone}"))
+                .wrap(Wrap::default())
+                .block(message_block);
+            let area = centered_rect(75, 25, f.size());
+            f.render_widget(Clear, area);
+            f.render_widget(message_text, area);
+        }
     }
 }
 
@@ -231,6 +244,7 @@ pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
                 Popup::NewDay => "(esc) cancel | (tab | enter) next/save",
                 Popup::ConfDeleteDay => "(esc) cancel | (enter) save | \"y\" save",
                 Popup::Info(_) => "(esc) close",
+                Popup::Config(_) => "(esc) close",
             }
         } else {
             match app.current_screen {

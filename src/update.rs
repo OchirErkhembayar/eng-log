@@ -78,6 +78,9 @@ fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup
             };
             app.popup = None;
         }
+        Popup::Config(_) => {
+            app.popup = None;
+        }
         Popup::Info(_) => app.popup = None,
     }
 }
@@ -128,6 +131,7 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, event_handl
             }
             KeyCode::Char('d') => app.popup = Some(Popup::ConfDeleteDay),
             KeyCode::Char('i') => app.popup = Some(Popup::Info(Info::About)),
+            KeyCode::Char('c') => app.popup = Some(Popup::Config(false)),
             KeyCode::Char('n') => app.popup = Some(Popup::NewDay),
             KeyCode::Char('q') => app.should_quit = true,
             KeyCode::Char(':') => {

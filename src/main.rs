@@ -19,18 +19,28 @@ mod tui;
 mod ui;
 mod update;
 
-const DEV_FILE_PATH: &str = "./dev.postcard";
-const SEEDED_FILE_PATH: &str = "./seed.postcard";
+const DEV_FILE_PATH: &str = "dev.postcard";
+const SEEDED_FILE_PATH: &str = "seed.postcard";
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
+    let cfg: config::Config = confy::load("eng-log", None)?;
+    let timezone = match cfg.timezone.as_str() {
+        "UTC" => Utc,
+        _ => Utc,
+    };
+
+    let doc_dir = dirs_next::document_dir().expect("Failed to find documents directory");
 
     let environment = cli.environment.unwrap_or("dev".to_string());
 
     let file_path = match environment.as_str() {
-        "dev" => DEV_FILE_PATH,
+        "dev" => {
+            format!("{}/{}", doc_dir.display(), DEV_FILE_PATH)
+        }
         "seed" => {
-            let mut app = App::new(Utc, SEEDED_FILE_PATH.to_string());
+            let file_path = format!("{}/{}", doc_dir.display(), SEEDED_FILE_PATH);
+            let mut app = App::new(Utc, file_path.clone(), cfg.clone());
             for day in 0..500 {
                 let date = chrono::Utc::now()
                     .checked_sub_days(Days::new(day))
@@ -41,7 +51,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 app.days.add(day);
                 app.save();
             }
-            SEEDED_FILE_PATH
+            file_path
         }
         _ => {
             println!("Wrong environment. Expected \"dev\" or \"seed\"");
@@ -49,17 +59,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let cfg: config::Config = confy::load("eng-log", None)?;
-    let timezone = match cfg.timezone.as_str() {
-        "UTC" => Utc,
-        _ => Utc,
-    };
-
     let stdout = io::stdout();
     let backend = CrosstermBackend::new(stdout);
     let terminal = Terminal::new(backend)?;
 
-    let mut app = App::new(timezone, file_path.to_string());
+    let mut app = App::new(timezone, file_path.to_string(), cfg);
 
     let eventhandler = EventHandler::new(250);
     let mut tui = Tui::new(terminal, eventhandler);

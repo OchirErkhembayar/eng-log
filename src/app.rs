@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use std::{char, fs};
 use tui_textarea::{CursorMove, Input, TextArea};
 
+use crate::config::Config;
+
 #[derive(PartialEq)]
 pub enum CurrentScreen {
     // determines whether or not we're typing into the filter
@@ -24,6 +26,7 @@ pub enum Popup {
     NewDay,
     ConfDeleteDay,
     Info(Info),
+    Config(bool), // bool: whether or not we're editing
 }
 
 pub struct PopupBuffer {
@@ -85,16 +88,23 @@ pub struct App<'a, T> {
     pub max_index: isize, // kind of a hack. think of a better solution
     pub saving: bool,
     pub filter: Option<String>,
+    pub config: Config,
 }
 
 impl<'a, T: TimeZone> App<'a, T> {
-    pub fn new(timezone: T, file_path: String) -> Self {
+    pub fn new(timezone: T, file_path: String, config: Config) -> Self {
         let days = Self::load_days(file_path.as_str());
         let now = Utc::now().date_naive();
-        Self::create_app(days, now, timezone, file_path)
+        Self::create_app(days, now, timezone, file_path, config)
     }
 
-    fn create_app(mut days: Days, now: NaiveDate, timezone: T, file_path: String) -> Self {
+    fn create_app(
+        mut days: Days,
+        now: NaiveDate,
+        timezone: T,
+        file_path: String,
+        config: Config,
+    ) -> Self {
         if !days.contains_day(now) {
             days.add(Day::new(now));
         }
@@ -115,6 +125,7 @@ impl<'a, T: TimeZone> App<'a, T> {
             max_index: -1,
             saving: false,
             filter: None,
+            config,
         };
         app.load_text();
         app
