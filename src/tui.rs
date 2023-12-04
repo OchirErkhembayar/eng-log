@@ -22,10 +22,18 @@ use crate::app::App;
 type CrosstermTerminal = ratatui::Terminal<CrosstermBackend<Stdout>>;
 
 #[derive(Clone, Copy, Debug)]
+pub enum Loading {
+    Saving(bool),
+    Loading(bool),
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum Event {
     Tick,
     Key(KeyEvent),
-    Saving(bool),
+    Loading(Loading),
+    // True means switch to edit screen for current day
+    LoadDays(bool),
 }
 
 pub struct Tui {
@@ -57,6 +65,9 @@ impl Tui {
         self.task = tokio::spawn(async move {
             let mut reader = crossterm::event::EventStream::new();
             let mut tick_interval = tokio::time::interval(tick_delay);
+            _event_tx
+                .send(Event::LoadDays(true))
+                .expect("Failed to load events");
             loop {
                 let tick_delay = tick_interval.tick();
                 let crossterm_event = reader.next().fuse();

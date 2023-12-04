@@ -126,9 +126,12 @@ fn render_title<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
 
     let title_message = if app.saving {
         "Saving..."
+    } else if app.loading {
+        "Loading..."
     } else {
         "Engineering Log"
     };
+
     let title = Paragraph::new(Text::styled(
         title_message,
         Style::default().fg(Color::White).bold(),
@@ -162,19 +165,21 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
             f.render_widget(app.text_buffer.widget(), rect);
         }
         CurrentScreen::Main(_) => {
-            let current = app.currently_selected as isize;
+            let current = app.currently_selected as usize;
+            let min_index = app.max_index - rect.height as usize;
             if app.max_index == -1 {
-                app.max_index = rect.height as isize;
-            } else if current >= app.max_index - 2 {
+                app.max_index = rect.height as usize;
+            } else if current + 3 > app.max_index {
+                // largest allowed value current + 2
+                // app.max_index = current + 2;
+                // app.min_index = current - rect.height as isize - 2;
                 app.max_index += 1;
-                app.min_index += 1;
-            } else if current < app.min_index {
-                app.min_index -= 1;
+                // app.min_index += 1;
+            } else if current < min_index {
                 app.max_index -= 1;
             }
             for (index, day) in app.filtered_days().enumerate() {
-                let index = index as isize;
-                if index < app.min_index || index > app.max_index {
+                if index < min_index || index > app.max_index {
                     continue;
                 }
 
@@ -255,7 +260,7 @@ pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
                     if app.filter.is_some() {
                         "(q) quit | (enter) edit day | (esc) clear filter | (d) delete day | (n) new day | (i) info | (:) filter | vim motions if you're cool"
                     } else {
-                        "(q) quit | (enter) edit day | (d) delete day | (n) new day | (i) info | (:) filter | vim motions if you're cool"
+                        "(q) quit | (enter) edit day | (d) delete day | (n) new day | (i) info | (:) filter | (r) current_day | vim motions if you're cool"
                     }
                 }
                 CurrentScreen::ViewingDay => "(esc) back",

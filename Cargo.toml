@@ -4,8 +4,11 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT"
 description = "Keep a work log as a software developer for looking back on during yearly reviews etc."
+default-run = "englog"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[[bin]]
+name = "seed"
+path = "src/bin/seed.rs"
 
 [dependencies]
 crossterm = { version = "0.27.0", features = ["event-stream"]}

@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, TimeZone, Utc};
+use chrono::{NaiveDate, TimeZone};
 use ratatui::{
     style::{Color, Style},
     widgets::{Block, Borders, Padding},
@@ -87,35 +87,20 @@ pub struct App<'a, T> {
     pub min_index: isize, // kind of a hack. think of a better solution
     pub max_index: isize, // kind of a hack. think of a better solution
     pub saving: bool,
+    pub loading: bool,
     pub filter: Option<String>,
     pub config: Config,
 }
 
 impl<'a, T: TimeZone> App<'a, T> {
     pub fn new(timezone: T, file_path: String, config: Config) -> Self {
-        let days = Self::load_days(file_path.as_str());
-        let now = Utc::now().date_naive();
-        Self::create_app(days, now, timezone, file_path, config)
-    }
-
-    fn create_app(
-        mut days: Days,
-        now: NaiveDate,
-        timezone: T,
-        file_path: String,
-        config: Config,
-    ) -> Self {
-        if !days.contains_day(now) {
-            days.add(Day::new(now));
-        }
-        let currently_selected = days.iter().position(|d| d.date == now).unwrap();
-        let mut app = App {
-            days,
+        App {
+            days: Days::default(),
             should_quit: false,
-            current_screen: CurrentScreen::ViewingDay,
+            current_screen: CurrentScreen::Main(false),
             timezone,
             date: chrono::Utc::now().date_naive(),
-            currently_selected,
+            currently_selected: 0,
             text_buffer: App::<T>::day_text_area(None),
             filter_buffer: App::<T>::day_text_area(None),
             popup: None,
@@ -124,21 +109,49 @@ impl<'a, T: TimeZone> App<'a, T> {
             min_index: 0,
             max_index: -1,
             saving: false,
+            loading: false,
             filter: None,
             config,
-        };
-        app.load_text();
-        app
+        }
     }
 
-    fn load_days(file_path: &str) -> Days {
-        match fs::read(file_path) {
+    pub fn switch_to_current_day(&mut self) {
+        self.remove_filter();
+        let now = self.now();
+        self.currently_selected = self.days.iter().position(|d| d.date == now).unwrap();
+    }
+
+    fn now(&self) -> NaiveDate {
+        chrono::Utc::now()
+            .with_timezone(&self.timezone)
+            .date_naive()
+    }
+
+    pub fn remove_filter(&mut self) {
+        self.filter = None;
+        self.current_screen = CurrentScreen::Main(false);
+    }
+
+    pub fn load_days(&mut self, switch_screen: bool) {
+        let mut days = match fs::read(self.file_path.as_str()) {
             Ok(serialized) => postcard::from_bytes(&serialized).unwrap(),
             Err(_) => {
                 let days = Days::default();
-                App::<T>::save_inner(&days, file_path);
+                App::<T>::save_inner(&days, self.file_path.as_str());
                 days
             }
+        };
+        let now = self.now();
+
+        if !days.contains_day(now) {
+            days.add(Day::new(now));
+        }
+        let currently_selected = days.iter().position(|d| d.date == now).unwrap();
+        self.days = days;
+        self.currently_selected = currently_selected;
+        if switch_screen {
+            self.current_screen = CurrentScreen::ViewingDay;
+            self.load_text();
         }
     }
 
@@ -262,9 +275,7 @@ pub struct Days {
 
 impl Days {
     fn default() -> Self {
-        Self {
-            days: Vec::from([Day::new(chrono::Utc::now().date_naive())]),
-        }
+        Self { days: Vec::new() }
     }
 
     pub fn iter_mut_filtered<'a>(
@@ -353,27 +364,5 @@ impl Day {
 
     pub fn content_into(&self) -> Vec<String> {
         self.content.clone()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::Days;
-
-    const TEST_FILE_PATH: &str = "./test/test.postcard";
-
-    #[test]
-    fn save_500_days() {
-        let mut app = App::new(Utc, TEST_FILE_PATH.to_string());
-        for day in 1..1000 {
-            let date = chrono::Utc::now()
-                .checked_sub_days(Days::new(day))
-                .unwrap()
-                .date_naive();
-            let day = Day::new(date);
-            app.days.add(day);
-            app.save();
-        }
     }
 }

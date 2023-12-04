@@ -5,10 +5,10 @@ use tui_textarea::{Input, Key};
 
 use crate::{
     app::{App, CurrentScreen, Day, Info, Popup},
-    tui::{Event, Tui},
+    tui::{Event, Loading, Tui},
 };
 
-pub fn update<T>(event: Event, app: &mut App<T>, tui: &Tui)
+pub fn update<T>(event: Event, app: &mut App<'_, T>, tui: &Tui)
 where
     T: TimeZone,
 {
@@ -20,8 +20,18 @@ where
                 update_screen(app, key_event, &tui.event_tx);
             }
         }
-        Event::Saving(state) => app.saving = state,
+        Event::Loading(Loading::Saving(state)) => app.saving = state,
+        Event::Loading(Loading::Loading(state)) => app.loading = state,
         Event::Tick => {}
+        Event::LoadDays(switch_screen) => {
+            tui.event_tx
+                .send(Event::Loading(Loading::Loading(true)))
+                .expect("Failed to send loading message");
+            let rx = tui.event_tx.clone();
+            app.load_days(switch_screen);
+            rx.send(Event::Loading(Loading::Loading(false)))
+                .expect("Failed to send loading message");
+        }
     }
 }
 
@@ -102,6 +112,7 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, rx: &Unboun
             input => app.input_to_filter_buffer(input),
         },
         CurrentScreen::Main(false) => match key_event.code {
+            KeyCode::Char('r') => app.switch_to_current_day(),
             KeyCode::Esc => app.filter = None,
             KeyCode::Enter | KeyCode::Char('l') | KeyCode::Right => {
                 app.load_text();
@@ -132,6 +143,7 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, rx: &Unboun
             KeyCode::Char('c') => app.popup = Some(Popup::Config(false)),
             KeyCode::Char('n') => app.popup = Some(Popup::NewDay),
             KeyCode::Char('q') => app.should_quit = true,
+            KeyCode::Char('b') => app.currently_selected = app.days.days.len() - 1,
             KeyCode::Char(':') => {
                 app.current_screen = CurrentScreen::Main(true);
                 app.init_filter_text();
@@ -145,12 +157,9 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, rx: &Unboun
                     app.current_screen = CurrentScreen::Main(false);
                     //TODO remove this useless testing stuff and use Tokio
                     let sender = rx.clone();
+                    sender.send(Event::Loading(Loading::Saving(true))).unwrap();
                     App::<T>::save_inner(&app.days, &app.file_path);
-                    tokio::spawn(async move {
-                        sender.send(Event::Saving(true)).unwrap();
-                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                        sender.send(Event::Saving(false)).unwrap();
-                    });
+                    sender.send(Event::Loading(Loading::Saving(false))).unwrap();
                 }
                 input => app.input_to_current_day(input),
             };
