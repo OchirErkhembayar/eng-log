@@ -1,13 +1,11 @@
-use std::time::Duration;
-
 use chrono::{NaiveDate, TimeZone};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::{Input, Key};
 
 use crate::{
     app::{App, CurrentScreen, Day, Info, Popup},
-    event::{Event, EventHandler},
-    tui::Tui,
+    tui::{Event, Tui},
 };
 
 pub fn update<T>(event: Event, app: &mut App<T>, tui: &Tui)
@@ -19,7 +17,7 @@ where
             if let Some(popup) = &app.popup {
                 update_popup(app, key_event, popup.clone());
             } else {
-                update_screen(app, key_event, &tui.event_handler);
+                update_screen(app, key_event, &tui.event_tx);
             }
         }
         Event::Saving(state) => app.saving = state,
@@ -85,7 +83,7 @@ fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup
     }
 }
 
-fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, event_handler: &EventHandler) {
+fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, rx: &UnboundedSender<Event>) {
     match app.current_screen {
         CurrentScreen::Main(true) => match key_event.into() {
             Input {
@@ -146,12 +144,12 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, event_handl
                     app.update_day_from_buffer();
                     app.current_screen = CurrentScreen::Main(false);
                     //TODO remove this useless testing stuff and use Tokio
-                    let sender = event_handler.sender();
-                    std::thread::spawn(move || {
-                        sender.send(Event::Saving(true)).and_then(|_| {
-                            std::thread::sleep(Duration::from_secs(2));
-                            sender.send(Event::Saving(false))
-                        })
+                    let sender = rx.clone();
+                    App::<T>::save_inner(&app.days, &app.file_path);
+                    tokio::spawn(async move {
+                        sender.send(Event::Saving(true)).unwrap();
+                        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                        sender.send(Event::Saving(false)).unwrap();
                     });
                 }
                 input => app.input_to_current_day(input),

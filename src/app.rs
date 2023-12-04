@@ -83,7 +83,7 @@ pub struct App<'a, T> {
     pub filter_buffer: TextArea<'a>,
     pub popup: Option<Popup>,
     pub popup_buffer: PopupBuffer,
-    file_path: String,
+    pub file_path: String,
     pub min_index: isize, // kind of a hack. think of a better solution
     pub max_index: isize, // kind of a hack. think of a better solution
     pub saving: bool,
@@ -197,10 +197,9 @@ impl<'a, T: TimeZone> App<'a, T> {
         if !filtered_days.is_empty() {
             filtered_days[selected].content = content;
         }
-        App::<T>::save_inner(&self.days, &self.file_path);
     }
 
-    fn save_inner(days: &Days, file_path: &str) {
+    pub fn save_inner(days: &Days, file_path: &str) {
         let serialized: Vec<u8> = postcard::to_allocvec(days).unwrap();
         let _ = fs::File::create(file_path);
         fs::write(file_path, serialized).expect("Failed to write to file");
@@ -256,7 +255,7 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Days {
     pub days: Vec<Day>,
 }
@@ -316,7 +315,7 @@ impl Days {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Eq)]
+#[derive(Serialize, Deserialize, Debug, Eq, Clone)]
 pub struct Day {
     pub date: NaiveDate,
     pub content: Vec<String>,

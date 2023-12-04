@@ -1,9 +1,8 @@
 use anyhow::Result;
 use app::{App, Day};
 use arg::Cli;
-use chrono::{Days, TimeZone, Utc};
+use chrono::{Days, Utc};
 use clap::Parser;
-use event::EventHandler;
 use ratatui::prelude::CrosstermBackend;
 use ratatui::Terminal;
 use std::io;
@@ -14,7 +13,6 @@ use update::update;
 mod app;
 mod arg;
 mod config;
-mod event;
 mod tui;
 mod ui;
 mod update;
@@ -22,7 +20,8 @@ mod update;
 const DEV_FILE_PATH: &str = "dev.postcard";
 const SEEDED_FILE_PATH: &str = "seed.postcard";
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cli = Cli::parse();
     let cfg: config::Config = confy::load("eng-log", None)?;
     let timezone = match cfg.timezone.as_str() {
@@ -65,25 +64,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut app = App::new(timezone, file_path.to_string(), cfg);
 
-    let eventhandler = EventHandler::new(250);
-    let mut tui = Tui::new(terminal, eventhandler);
+    let mut tui = Tui::new(terminal);
 
     tui.enter()?;
-    run(&mut tui, &mut app)?;
 
-    tui.exit()?;
-    Ok(())
-}
-
-fn run<T>(tui: &mut Tui, app: &mut App<T>) -> Result<()>
-where
-    T: TimeZone,
-{
     while !app.should_quit {
-        tui.draw(app)?;
-        let event = tui.event_handler.next()?;
-        update(event, app, tui);
+        tui.draw(&mut app)?;
+        if let Some(event) = tui.next().await {
+            update(event, &mut app, &tui);
+        }
     }
 
+    tui.exit()?;
     Ok(())
 }

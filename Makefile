@@ -1,5 +1,5 @@
 f:
-	rustfmt ./src/*.rs
+	rustfmt --edition 2021 ./src/*.rs
 
 c:
 	cargo clippy
