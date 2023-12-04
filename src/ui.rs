@@ -165,21 +165,22 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
             f.render_widget(app.text_buffer.widget(), rect);
         }
         CurrentScreen::Main(_) => {
-            let current = app.currently_selected as usize;
-            let min_index = app.max_index - rect.height as usize;
+            let current = app.currently_selected as isize;
+            // Think of a better way to handle this initialisation
             if app.max_index == -1 {
-                app.max_index = rect.height as usize;
+                app.max_index = rect.height as isize;
             } else if current + 3 > app.max_index {
-                // largest allowed value current + 2
-                // app.max_index = current + 2;
-                // app.min_index = current - rect.height as isize - 2;
-                app.max_index += 1;
-                // app.min_index += 1;
-            } else if current < min_index {
-                app.max_index -= 1;
+                let max = current + 3;
+                app.max_index = max;
+                app.min_index = max - rect.height as isize;
+            } else if current < app.min_index {
+                app.max_index = current + rect.height as isize;
+                app.min_index = current;
             }
             for (index, day) in app.filtered_days().enumerate() {
-                if index < min_index || index > app.max_index {
+                let index = index as isize;
+
+                if index < app.min_index || index > app.max_index {
                     continue;
                 }
 

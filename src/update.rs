@@ -131,7 +131,7 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, rx: &Unboun
                 }
             }
             KeyCode::Char('d') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                let max_index = app.days.days.len() - 1;
+                let max_index = app.filtered_days().count() - 1;
                 if max_index - app.currently_selected < 10 {
                     app.currently_selected = max_index;
                 } else {
