@@ -2,7 +2,8 @@
 name = "eng-log"
 version = "0.1.0"
 edition = "2021"
-licence = "MIT OR Apache-2.0."
+license = "MIT OR Apache-2.0."
+description = "Keep a work log as a software developer for looking back on during yearly reviews etc."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
