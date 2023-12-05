@@ -1,6 +1,6 @@
 [package]
 name = "englog"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
 description = "Keep a work log as a software developer for looking back on during yearly reviews etc."
