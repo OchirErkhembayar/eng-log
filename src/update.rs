@@ -27,9 +27,9 @@ where
             tui.event_tx
                 .send(Event::Loading(Loading::Loading(true)))
                 .expect("Failed to send loading message");
-            let rx = tui.event_tx.clone();
             app.load_days(switch_screen);
-            rx.send(Event::Loading(Loading::Loading(false)))
+            tui.event_tx
+                .send(Event::Loading(Loading::Loading(false)))
                 .expect("Failed to send loading message");
         }
     }
