@@ -4,7 +4,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::{Input, Key};
 
 use crate::{
-    app::{App, CurrentScreen, Day, Info, Popup},
+    app::{save_inner, App, CurrentScreen, Day, Info, Popup},
     tui::{Event, Loading, Tui},
 };
 
@@ -185,7 +185,7 @@ fn update_screen(app: &mut App, key_event: KeyEvent, rx: &UnboundedSender<Event>
                     //TODO remove this useless testing stuff and use Tokio
                     let sender = rx.clone();
                     sender.send(Event::Loading(Loading::Saving(true))).unwrap();
-                    App::save_inner(&app.days, &app.file_path);
+                    save_inner(&app.days, &app.file_path);
                     sender.send(Event::Loading(Loading::Saving(false))).unwrap();
                 }
                 input => app.input_to_current_day(input),

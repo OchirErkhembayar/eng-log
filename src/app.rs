@@ -132,8 +132,8 @@ impl<'a> App<'a> {
             current_screen: CurrentScreen::Main(false),
             date: chrono::Local::now().date_naive(),
             currently_selected: 0,
-            text_buffer: App::day_text_area(None),
-            filter_buffer: App::day_text_area(None),
+            text_buffer: day_text_area(None),
+            filter_buffer: day_text_area(None),
             popup: None,
             popup_buffer: NewDayBuffer::new(),
             config_buffer: ConfigBuffer::new(config.chars_per_line),
@@ -167,7 +167,7 @@ impl<'a> App<'a> {
             Ok(serialized) => postcard::from_bytes(&serialized).unwrap(),
             Err(_) => {
                 let days = Days::default();
-                App::save_inner(&days, self.file_path.as_str());
+                save_inner(&days, self.file_path.as_str());
                 days
             }
         };
@@ -188,26 +188,28 @@ impl<'a> App<'a> {
     pub fn load_text(&mut self) {
         let filtered_days: Vec<_> = self.filtered_days().collect();
         if filtered_days.is_empty() {
-            self.text_buffer = Self::day_text_area(None);
+            self.text_buffer = day_text_area(None);
         } else {
             self.text_buffer =
-                Self::day_text_area(Some(filtered_days[self.currently_selected].content_into()));
+                day_text_area(Some(filtered_days[self.currently_selected].content_into()));
         }
     }
 
     pub fn input_to_current_day(&mut self, input: Input) {
-        if let Some(limit) = self.config.chars_per_line {
-            if input.key != Key::Backspace {
-                let (y, _) = self.text_buffer.cursor();
-                let current_line = &self.text_buffer.lines()[y];
-                if current_line.len() + 1 > limit {
-                    if current_line.split_whitespace().count() > 1 {
-                        self.text_buffer.move_cursor(CursorMove::WordBack);
-                        self.text_buffer.delete_next_word();
-                        self.text_buffer.insert_newline();
-                        self.text_buffer.insert_str(self.text_buffer.yank_text());
-                    } else {
-                        self.text_buffer.insert_newline();
+        if let Key::Char(_) = input.key {
+            if let Some(limit) = self.config.chars_per_line {
+                if !input.ctrl {
+                    let (y, _) = self.text_buffer.cursor();
+                    let current_line = &self.text_buffer.lines()[y];
+                    if current_line.len() + 1 > limit {
+                        if current_line.split_whitespace().count() > 1 {
+                            self.text_buffer.move_cursor(CursorMove::WordBack);
+                            self.text_buffer.delete_next_word();
+                            self.text_buffer.insert_newline();
+                            self.text_buffer.insert_str(self.text_buffer.yank_text());
+                        } else {
+                            self.text_buffer.insert_newline();
+                        }
                     }
                 }
             }
@@ -247,7 +249,7 @@ impl<'a> App<'a> {
     }
 
     pub fn save(&mut self) {
-        App::save_inner(&self.days, &self.file_path);
+        save_inner(&self.days, &self.file_path);
     }
 
     pub fn update_day_from_buffer(&mut self) {
@@ -259,40 +261,8 @@ impl<'a> App<'a> {
         }
     }
 
-    pub fn save_inner(days: &Days, file_path: &str) {
-        let serialized: Vec<u8> = postcard::to_allocvec(days).unwrap();
-        let _ = fs::File::create(file_path);
-        fs::write(file_path, serialized).expect("Failed to write to file");
-    }
-
-    fn new_text_area(input: Option<Vec<String>>, block: Block<'a>) -> TextArea<'a> {
-        let mut textarea = match input {
-            Some(input) => TextArea::new(input),
-            None => TextArea::default(),
-        };
-        textarea.set_block(block);
-        textarea.set_style(Style::default().fg(Color::White));
-        textarea.set_cursor_line_style(Style::default());
-        textarea.move_cursor(CursorMove::Bottom);
-        textarea.move_cursor(CursorMove::End);
-        textarea
-    }
-
-    pub fn day_text_area(input: Option<Vec<String>>) -> TextArea<'a> {
-        let mut textarea = Self::new_text_area(
-            input,
-            Block::default()
-                .title("Note")
-                .style(Style::default().fg(Color::White))
-                .borders(Borders::ALL)
-                .padding(Padding::horizontal(1)),
-        );
-        textarea.set_placeholder_text("Start typing..");
-        textarea
-    }
-
     pub fn init_filter_text(&mut self) {
-        self.filter_buffer = Self::new_text_area(
+        self.filter_buffer = new_text_area(
             None,
             Block::default()
                 .style(Style::default().fg(Color::White))
@@ -310,6 +280,38 @@ impl<'a> App<'a> {
             self.save();
         }
     }
+}
+
+pub fn save_inner(days: &Days, file_path: &str) {
+    let serialized: Vec<u8> = postcard::to_allocvec(days).unwrap();
+    let _ = fs::File::create(file_path);
+    fs::write(file_path, serialized).expect("Failed to write to file");
+}
+
+fn new_text_area(input: Option<Vec<String>>, block: Block<'_>) -> TextArea<'_> {
+    let mut textarea = match input {
+        Some(input) => TextArea::new(input),
+        None => TextArea::default(),
+    };
+    textarea.set_block(block);
+    textarea.set_style(Style::default().fg(Color::White));
+    textarea.set_cursor_line_style(Style::default());
+    textarea.move_cursor(CursorMove::Bottom);
+    textarea.move_cursor(CursorMove::End);
+    textarea
+}
+
+pub fn day_text_area<'a>(input: Option<Vec<String>>) -> TextArea<'a> {
+    let mut textarea = new_text_area(
+        input,
+        Block::default()
+            .title("Note")
+            .style(Style::default().fg(Color::White))
+            .borders(Borders::ALL)
+            .padding(Padding::horizontal(1)),
+    );
+    textarea.set_placeholder_text("Start typing..");
+    textarea
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
