@@ -1,5 +1,4 @@
 use anyhow::Result;
-use chrono::TimeZone;
 use crossterm::{
     event::{
         DisableMouseCapture, EnableMouseCapture, Event as CrossTermEvent, KeyEvent, KeyEventKind,
@@ -149,7 +148,7 @@ impl Tui {
 }
 
 impl Tui {
-    pub fn draw<T: TimeZone>(&mut self, app: &mut App<T>) -> Result<()> {
+    pub fn draw(&mut self, app: &mut App) -> Result<()> {
         self.terminal.draw(|f| crate::ui::ui(f, app))?;
         Ok(())
     }

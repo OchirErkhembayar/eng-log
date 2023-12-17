@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, TimeZone};
+use chrono::NaiveDate;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use tokio::sync::mpsc::UnboundedSender;
 use tui_textarea::{Input, Key};
@@ -8,10 +8,7 @@ use crate::{
     tui::{Event, Loading, Tui},
 };
 
-pub fn update<T>(event: Event, app: &mut App<'_, T>, tui: &Tui)
-where
-    T: TimeZone,
-{
+pub fn update(event: Event, app: &mut App<'_>, tui: &Tui) {
     match event {
         Event::Key(key_event) => {
             if let Some(popup) = &app.popup {
@@ -35,7 +32,7 @@ where
     }
 }
 
-fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup) {
+fn update_popup(app: &mut App, key_event: KeyEvent, popup: Popup) {
     match popup {
         Popup::NewDay => match key_event.code {
             KeyCode::Esc => {
@@ -86,14 +83,47 @@ fn update_popup<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, popup: Popup
             };
             app.popup = None;
         }
-        Popup::Config(_) => {
-            app.popup = None;
+        Popup::Config(editing) => {
+            if editing {
+                match key_event.code {
+                    KeyCode::Esc => app.popup = None,
+                    KeyCode::Backspace => app.config_buffer.pop(),
+                    KeyCode::Char(c) => app.config_buffer.push(c),
+                    KeyCode::Enter => {
+                        let new_limit = &app.config_buffer.word_limit;
+                        if new_limit.trim().is_empty() {
+                            app.config.chars_per_line = None;
+                        } else {
+                            match new_limit.parse::<usize>() {
+                                Ok(limit) => app.config.chars_per_line = Some(limit),
+                                Err(_) => app.config_buffer.clear(),
+                            }
+                        }
+                        app.config_buffer.word_limit =
+                            if let Some(limit) = app.config.chars_per_line {
+                                limit.to_string()
+                            } else {
+                                String::new()
+                            };
+                        confy::store("englog", None, &app.config).expect("Failed to save config");
+                        app.popup = None;
+                    }
+                    _ => {}
+                }
+            } else {
+                match key_event.code {
+                    KeyCode::Char('e') => {
+                        app.popup = Some(Popup::Config(true));
+                    }
+                    _ => app.popup = None,
+                }
+            }
         }
         Popup::Info(_) => app.popup = None,
     }
 }
 
-fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, rx: &UnboundedSender<Event>) {
+fn update_screen(app: &mut App, key_event: KeyEvent, rx: &UnboundedSender<Event>) {
     match app.current_screen {
         CurrentScreen::Main(true) => match key_event.into() {
             Input {
@@ -121,9 +151,6 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, rx: &Unboun
             KeyCode::Up | KeyCode::Char('k') => app.decrement_selected(),
             KeyCode::Down | KeyCode::Char('j') => app.increment_selected(),
             KeyCode::Char('u') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                // This is causing the cursor to go off screen because the top
-                // and bottom are only incremented by 1. Incrementing them by however much
-                // the difference was caused some rendering bugs. Will need to look into this.
                 if app.currently_selected < 10 {
                     app.currently_selected = 0;
                 } else {
@@ -158,7 +185,7 @@ fn update_screen<T: TimeZone>(app: &mut App<T>, key_event: KeyEvent, rx: &Unboun
                     //TODO remove this useless testing stuff and use Tokio
                     let sender = rx.clone();
                     sender.send(Event::Loading(Loading::Saving(true))).unwrap();
-                    App::<T>::save_inner(&app.days, &app.file_path);
+                    App::save_inner(&app.days, &app.file_path);
                     sender.send(Event::Loading(Loading::Saving(false))).unwrap();
                 }
                 input => app.input_to_current_day(input),

@@ -1,4 +1,3 @@
-use chrono::TimeZone;
 use ratatui::{
     prelude::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Style, Stylize},
@@ -11,7 +10,7 @@ use ratatui::{
 
 use crate::app::{App, CurrentScreen, Popup};
 
-pub fn ui<T: TimeZone>(f: &mut Frame, app: &mut App<T>) {
+pub fn ui(f: &mut Frame, app: &mut App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -35,8 +34,37 @@ pub fn ui<T: TimeZone>(f: &mut Frame, app: &mut App<T>) {
     }
 }
 
-fn render_popup<T: TimeZone>(f: &mut Frame, app: &App<T>, popup: &Popup) {
+fn render_popup(f: &mut Frame, app: &App, popup: &Popup) {
     match popup {
+        Popup::ConfDeleteDay => {
+            let delete_block = Block::default()
+                .title("Are you sure?")
+                .style(Style::default().bg(Color::Red).fg(Color::White))
+                .borders(Borders::ALL);
+            let delete_text = Paragraph::new("y for yes\nAny other key to cancel".to_string())
+                .wrap(Wrap::default())
+                .block(delete_block);
+            let area = centered_rect(60, 15, f.size());
+            f.render_widget(Clear, area);
+            f.render_widget(delete_text, area);
+        }
+        Popup::Info(_) => {
+            let message = "Thanks for trying out the app\n
+There are a few known issues which i'm working on:
+1. Resizing may cause awkward rendering issues so please just quit and restart the app if this occurs
+2. Control scrolling may cause the selected day to go off screen.\n
+Any bugs found please just send requests and i'll see what I can do";
+            let message_block = Block::default()
+                .title("Info")
+                .borders(Borders::ALL)
+                .style(Style::default().bg(Color::Green).fg(Color::White));
+            let message_text = Paragraph::new(message.to_string())
+                .wrap(Wrap::default())
+                .block(message_block);
+            let area = centered_rect(75, 25, f.size());
+            f.render_widget(Clear, area);
+            f.render_widget(message_text, area);
+        }
         Popup::NewDay => {
             let area = centered_rect(60, 15, f.size());
             let popup_chunks = Layout::default()
@@ -69,52 +97,36 @@ fn render_popup<T: TimeZone>(f: &mut Frame, app: &App<T>, popup: &Popup) {
             let year_text = Paragraph::new(app.popup_buffer.year.clone()).block(year_block);
             f.render_widget(year_text, popup_chunks[2]);
         }
-        Popup::ConfDeleteDay => {
-            let delete_block = Block::default()
-                .title("Are you sure?")
-                .style(Style::default().bg(Color::Red).fg(Color::White))
-                .borders(Borders::ALL);
-            let delete_text = Paragraph::new("y for yes\nAny other key to cancel".to_string())
-                .wrap(Wrap::default())
-                .block(delete_block);
-            let area = centered_rect(60, 15, f.size());
-            f.render_widget(Clear, area);
-            f.render_widget(delete_text, area);
-        }
-        Popup::Info(_) => {
-            let message = "Thanks for trying out the app\n
-There are a few known issues which i'm working on:
-1. Resizing may cause awkward rendering issues so please just quit and restart the app if this occurs
-2. Control scrolling may cause the selected day to go off screen.\n
-Any bugs found please just send requests and i'll see what I can do";
-            let message_block = Block::default()
-                .title("Info")
-                .borders(Borders::ALL)
-                .style(Style::default().bg(Color::Green).fg(Color::White));
-            let message_text = Paragraph::new(message.to_string())
-                .wrap(Wrap::default())
-                .block(message_block);
+        Popup::Config(editing) => {
             let area = centered_rect(75, 25, f.size());
-            f.render_widget(Clear, area);
-            f.render_widget(message_text, area);
-        }
-        Popup::Config(_) => {
-            let timezone = &app.config.timezone;
+            let title = if *editing {
+                "Config (Editing)"
+            } else {
+                "Config"
+            };
             let message_block = Block::default()
-                .title("Config")
+                .title(title)
                 .borders(Borders::ALL)
                 .style(Style::default().bg(Color::Blue).fg(Color::White));
-            let message_text = Paragraph::new(format!("Timezone: {timezone}"))
-                .wrap(Wrap::default())
-                .block(message_block);
-            let area = centered_rect(75, 25, f.size());
+            let message_text = {
+                let word_limit = if *editing {
+                    format!("{}{}", app.config_buffer.word_limit.clone(), "▌") // cry
+                } else if let Some(limit) = &app.config.chars_per_line {
+                    limit.to_string()
+                } else {
+                    "Unlimited".to_string()
+                };
+                Paragraph::new(format!("Max characters per line: {word_limit}"))
+                    .wrap(Wrap::default())
+                    .block(message_block)
+            };
             f.render_widget(Clear, area);
             f.render_widget(message_text, area);
         }
     }
 }
 
-fn render_title<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
+fn render_title(f: &mut Frame, app: &App, rect: Rect) {
     let title_chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
@@ -158,7 +170,7 @@ fn render_title<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
     f.render_widget(title, title_chunks[1]);
 }
 
-pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
+pub fn render_body(f: &mut Frame, app: &mut App, rect: Rect) {
     let mut list_items = Vec::<ListItem>::new();
     match app.current_screen {
         CurrentScreen::ViewingDay => {
@@ -238,7 +250,7 @@ pub fn render_body<T: TimeZone>(f: &mut Frame, app: &mut App<T>, rect: Rect) {
     }
 }
 
-pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
+pub fn render_footer(f: &mut Frame, app: &App, rect: Rect) {
     let footer_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(1), Constraint::Length(1)])
@@ -250,7 +262,13 @@ pub fn render_footer<T: TimeZone>(f: &mut Frame, app: &App<T>, rect: Rect) {
                 Popup::NewDay => "(esc) cancel | (tab | enter) next/save",
                 Popup::ConfDeleteDay => "(esc) cancel | (enter) save | \"y\" save",
                 Popup::Info(_) => "(esc) close",
-                Popup::Config(_) => "(esc) close",
+                Popup::Config(editing) => {
+                    if *editing {
+                        "(esc) close | (Enter) save | (Esc) cancel"
+                    } else {
+                        "(esc) close | (e) edit"
+                    }
+                }
             }
         } else {
             match app.current_screen {

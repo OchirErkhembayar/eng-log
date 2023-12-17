@@ -1,11 +1,11 @@
-use chrono::{NaiveDate, TimeZone};
+use chrono::NaiveDate;
 use ratatui::{
     style::{Color, Style},
     widgets::{Block, Borders, Padding},
 };
 use serde::{Deserialize, Serialize};
 use std::{char, fs};
-use tui_textarea::{CursorMove, Input, TextArea};
+use tui_textarea::{CursorMove, Input, Key, TextArea};
 
 use crate::config::Config;
 
@@ -29,14 +29,46 @@ pub enum Popup {
     Config(bool), // bool: whether or not we're editing
 }
 
-pub struct PopupBuffer {
+pub enum PopupBuffer {
+    NewDay(NewDayBuffer),
+    Config(ConfigBuffer),
+}
+
+pub struct ConfigBuffer {
+    pub word_limit: String,
+}
+
+impl ConfigBuffer {
+    pub fn new(word_limit: Option<usize>) -> Self {
+        let word_limit = if let Some(limit) = word_limit {
+            limit.to_string()
+        } else {
+            String::new()
+        };
+        Self { word_limit }
+    }
+
+    pub fn push(&mut self, char: char) {
+        self.word_limit.push(char);
+    }
+
+    pub fn pop(&mut self) {
+        self.word_limit.pop();
+    }
+
+    pub fn clear(&mut self) {
+        self.word_limit.clear();
+    }
+}
+
+pub struct NewDayBuffer {
     pub day: String,
     pub month: String,
     pub year: String,
     pub currently_selected: u8,
 }
 
-impl PopupBuffer {
+impl NewDayBuffer {
     fn new() -> Self {
         Self {
             day: String::new(),
@@ -72,17 +104,17 @@ impl PopupBuffer {
     }
 }
 
-pub struct App<'a, T> {
+pub struct App<'a> {
     pub days: Days,
     pub should_quit: bool,
     pub current_screen: CurrentScreen,
-    pub timezone: T,
     pub date: chrono::NaiveDate,
     pub currently_selected: usize,
     pub text_buffer: TextArea<'a>,
     pub filter_buffer: TextArea<'a>,
     pub popup: Option<Popup>,
-    pub popup_buffer: PopupBuffer,
+    pub popup_buffer: NewDayBuffer,
+    pub config_buffer: ConfigBuffer,
     pub file_path: String,
     pub min_index: isize, // kind of a hack. think of a better solution
     pub max_index: isize, // kind of a hack. think of a better solution
@@ -92,19 +124,19 @@ pub struct App<'a, T> {
     pub config: Config,
 }
 
-impl<'a, T: TimeZone> App<'a, T> {
-    pub fn new(timezone: T, file_path: String, config: Config) -> Self {
+impl<'a> App<'a> {
+    pub fn new(file_path: String, config: Config) -> Self {
         App {
             days: Days::default(),
             should_quit: false,
             current_screen: CurrentScreen::Main(false),
-            timezone,
-            date: chrono::Utc::now().date_naive(),
+            date: chrono::Local::now().date_naive(),
             currently_selected: 0,
-            text_buffer: App::<T>::day_text_area(None),
-            filter_buffer: App::<T>::day_text_area(None),
+            text_buffer: App::day_text_area(None),
+            filter_buffer: App::day_text_area(None),
             popup: None,
-            popup_buffer: PopupBuffer::new(),
+            popup_buffer: NewDayBuffer::new(),
+            config_buffer: ConfigBuffer::new(config.chars_per_line),
             file_path,
             min_index: 0,
             max_index: -1,
@@ -122,9 +154,7 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     fn now(&self) -> NaiveDate {
-        chrono::Utc::now()
-            .with_timezone(&self.timezone)
-            .date_naive()
+        chrono::Local::now().date_naive()
     }
 
     pub fn remove_filter(&mut self) {
@@ -137,7 +167,7 @@ impl<'a, T: TimeZone> App<'a, T> {
             Ok(serialized) => postcard::from_bytes(&serialized).unwrap(),
             Err(_) => {
                 let days = Days::default();
-                App::<T>::save_inner(&days, self.file_path.as_str());
+                App::save_inner(&days, self.file_path.as_str());
                 days
             }
         };
@@ -166,6 +196,22 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     pub fn input_to_current_day(&mut self, input: Input) {
+        if let Some(limit) = self.config.chars_per_line {
+            if input.key != Key::Backspace {
+                let (y, _) = self.text_buffer.cursor();
+                let current_line = &self.text_buffer.lines()[y];
+                if current_line.len() + 1 > limit {
+                    if current_line.split_whitespace().count() > 1 {
+                        self.text_buffer.move_cursor(CursorMove::WordBack);
+                        self.text_buffer.delete_next_word();
+                        self.text_buffer.insert_newline();
+                        self.text_buffer.insert_str(self.text_buffer.yank_text());
+                    } else {
+                        self.text_buffer.insert_newline();
+                    }
+                }
+            }
+        }
         self.text_buffer.input(input);
     }
 
@@ -178,7 +224,8 @@ impl<'a, T: TimeZone> App<'a, T> {
         }
     }
 
-    // This count is getting relied on quite heavily. Might want to cache it in a struct.
+    // This count is getting relied on quite heavily
+    // Inefficient but it seems quite fast ATM
     pub fn filtered_days(&self) -> impl Iterator<Item = &Day> {
         self.days.iter_filtered(self.filter.as_deref())
     }
@@ -200,7 +247,7 @@ impl<'a, T: TimeZone> App<'a, T> {
     }
 
     pub fn save(&mut self) {
-        App::<T>::save_inner(&self.days, &self.file_path);
+        App::save_inner(&self.days, &self.file_path);
     }
 
     pub fn update_day_from_buffer(&mut self) {
@@ -218,43 +265,40 @@ impl<'a, T: TimeZone> App<'a, T> {
         fs::write(file_path, serialized).expect("Failed to write to file");
     }
 
-    pub fn day_text_area(input: Option<Vec<String>>) -> TextArea<'a> {
+    fn new_text_area(input: Option<Vec<String>>, block: Block<'a>) -> TextArea<'a> {
         let mut textarea = match input {
             Some(input) => TextArea::new(input),
             None => TextArea::default(),
         };
+        textarea.set_block(block);
         textarea.set_style(Style::default().fg(Color::White));
-        textarea.set_placeholder_text("Start typing..");
         textarea.set_cursor_line_style(Style::default());
-        textarea.set_block(
+        textarea.move_cursor(CursorMove::Bottom);
+        textarea.move_cursor(CursorMove::End);
+        textarea
+    }
+
+    pub fn day_text_area(input: Option<Vec<String>>) -> TextArea<'a> {
+        let mut textarea = Self::new_text_area(
+            input,
             Block::default()
                 .title("Note")
                 .style(Style::default().fg(Color::White))
                 .borders(Borders::ALL)
                 .padding(Padding::horizontal(1)),
         );
-        textarea.move_cursor(CursorMove::Bottom);
-        textarea.move_cursor(CursorMove::End);
+        textarea.set_placeholder_text("Start typing..");
         textarea
     }
 
-    fn empty_text_area() -> TextArea<'a> {
-        let mut textarea = TextArea::default();
-        textarea.set_style(Style::default().fg(Color::White));
-        textarea.set_cursor_line_style(Style::default());
-        textarea.set_block(
+    pub fn init_filter_text(&mut self) {
+        self.filter_buffer = Self::new_text_area(
+            None,
             Block::default()
                 .style(Style::default().fg(Color::White))
                 .borders(Borders::NONE)
                 .padding(Padding::horizontal(1)),
         );
-        textarea.move_cursor(CursorMove::Bottom);
-        textarea.move_cursor(CursorMove::End);
-        textarea
-    }
-
-    pub fn init_filter_text(&mut self) {
-        self.filter_buffer = Self::empty_text_area();
     }
 
     pub fn remove_day(&mut self) {
