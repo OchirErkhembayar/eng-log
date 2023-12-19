@@ -9,7 +9,7 @@
 
 
 ### Todo
-#### 1. Automatic word wrapping
+#### 1. Automatic word wrapping (tui_textarea is currently working on this so we'll wait for them rather than hacking a solution together)
 #### 2. Error handling (error notifications)
 #### 3. Sharing between computers
 #### 4. Exporting
