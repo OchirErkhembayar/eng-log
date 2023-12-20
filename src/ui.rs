@@ -53,7 +53,22 @@ fn render_popup(f: &mut Frame, app: &App, popup: &Popup) {
 There are a few known issues which i'm working on:
 1. Resizing may cause awkward rendering issues so please just quit and restart the app if this occurs
 2. Control scrolling may cause the selected day to go off screen.\n
-Any bugs found please just send requests and i'll see what I can do";
+Any bugs found please just send requests and i'll see what I can do\n
+Useful shortcuts
+Please find all shortcuts at: https://github.com/rhysd/tui-textarea
+Ctrl + D = Delete one character in front of cursor
+Ctrl + K = Delete from cursor to the end of the line
+Ctrl + J = Delete from cursor to the start of the line
+Ctrl + W = Delete one word before cursor
+Ctrl + U = Undo
+Ctrl + R = Redo
+Ctrl + → / ← = Move forward or back one word
+Ctrl + ↑ / ↓ = Move up or down one paragraph
+Ctrl + Shift + ← / → / ↑ / ↓ = Highlight words/paragraphs
+Ctrl + X = Cut
+Ctrl + C = Copy
+Ctrl + P = Paste
+";
             let message_block = Block::default()
                 .title("Info")
                 .borders(Borders::ALL)
@@ -61,7 +76,7 @@ Any bugs found please just send requests and i'll see what I can do";
             let message_text = Paragraph::new(message.to_string())
                 .wrap(Wrap::default())
                 .block(message_block);
-            let area = centered_rect(75, 25, f.size());
+            let area = centered_rect(75, 80, f.size());
             f.render_widget(Clear, area);
             f.render_widget(message_text, area);
         }
